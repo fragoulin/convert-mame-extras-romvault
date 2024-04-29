@@ -7,6 +7,7 @@ Convert MAME Extras datafiles to a datafile compatible with RomVault.
 `convert-mame-extras-romvault <inputfile> <outputfile>`
 
 `inputfile` is a Zip file containing MAME Extras datafiles (e.g. 'MAME 0.264 EXTRAs.zip').
+
 `outputfile` will be generated (e.g. 'Extras.dat'), ready to be used with RomVault.
 
 ## Resources
