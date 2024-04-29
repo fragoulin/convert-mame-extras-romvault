@@ -1,0 +1,23 @@
+[package]
+name = "convert-mame-extras-romvault"
+version = "0.1.0"
+edition = "2021"
+authors = ["Fabrice Morin" ]
+description = "Convert MAME Extras datafiles to a datafile compatible with RomVault"
+documentation = "https://github.com/fragoulin/convert-mame-extras-romvault"
+readme = "README.md"
+homepage = "https://github.com/fragoulin/convert-mame-extras-romvault"
+repository = "https://github.com/fragoulin/convert-mame-extras-romvault"
+license = "MIT"
+license-file = "LICENSE"
+keywords = ["MAME", "Extras", "RomVault", "Pleasuredome"]
+publish = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clippy = "0.0.302"
+log = "0.4.21"
+quick-xml = "0.31.0"
+regex = "1.10.4"
+zip = "1.1.1"
