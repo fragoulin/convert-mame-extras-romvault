@@ -9,7 +9,6 @@ readme = "README.md"
 homepage = "https://github.com/fragoulin/convert-mame-extras-romvault"
 repository = "https://github.com/fragoulin/convert-mame-extras-romvault"
 license = "MIT"
-license-file = "LICENSE"
 keywords = ["MAME", "Extras", "RomVault", "Pleasuredome"]
 publish = false
 
