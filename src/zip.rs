@@ -1,50 +1,66 @@
-use std::error::Error;
-use std::fmt;
+use anyhow::anyhow;
 use std::fs::{self, File};
-use std::io::BufReader;
+use std::io::{BufReader, ErrorKind};
 use std::path::Path;
 use zip::ZipArchive;
 
 use crate::files::FILES;
 
-#[derive(Debug)]
-struct InvalidZipContentError(String);
-
-impl fmt::Display for InvalidZipContentError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Cannot find file '{}' in Zip archive", self.0)
-    }
-}
-
-impl Error for InvalidZipContentError {}
+type Result<T> = anyhow::Result<T>;
 
 /// Check if input file is accessible, is a valid Zip, and contains the expected entries.
-/// # Errors
-///
-/// Will return `Err` for one of the following cases:
-/// - `input_file_path` doesn't exist
-/// - `input_file_path` cannot be accessed,
-/// - `input_file_path` is not a valid Zip archive
-/// - archive doesn't contain expected files
-pub fn check_input_file(
-    input_file_path: &String,
-) -> Result<ZipArchive<BufReader<File>>, Box<dyn Error>> {
+pub fn check_input_file(input_file_path: &String) -> Result<ZipArchive<BufReader<File>>> {
     let fname = Path::new(&input_file_path);
 
     // Check if input file exists and can be accessed
-    fname.metadata()?;
+    if let Err(e) = fname.metadata() {
+        match e.kind() {
+            ErrorKind::NotFound => {
+                return Err(anyhow!("the file `{input_file_path}` does not exist"));
+            }
+            ErrorKind::PermissionDenied => {
+                return Err(anyhow!(
+                    "you have no permission to access file {0}",
+                    String::from(input_file_path)
+                ))
+            }
+            _ => {
+                return Err(anyhow!(
+                    "the file {} cannot be loaded",
+                    String::from(input_file_path)
+                ))
+            }
+        }
+    }
 
-    let file = fs::File::open(fname)?;
+    let file_result = fs::File::open(fname);
+    let file = match file_result {
+        Ok(file) => file,
+        Err(_) => {
+            return Err(anyhow!(
+                "the file {} does not exist",
+                String::from(input_file_path)
+            ))
+        }
+    };
     let reader = BufReader::new(file);
 
     // Check if input file is a valid zip
-    let mut archive = zip::ZipArchive::new(reader)?;
+    let archive_result = zip::ZipArchive::new(reader);
+    let mut archive = match archive_result {
+        Ok(archive) => archive,
+        Err(_) => {
+            return Err(anyhow!(
+                "the file {} is not a valid Zip file",
+                String::from(input_file_path)
+            ))
+        }
+    };
 
     // Check if input ZIP file contains all expected files
     for name in FILES {
         if archive.by_name(name).is_err() {
-            // Use custom error in order to show missing file in message
-            return Err(Box::new(InvalidZipContentError(name.into())));
+            return Err(anyhow!("the entry {} is missing from input Zip file", name));
         }
     }
 

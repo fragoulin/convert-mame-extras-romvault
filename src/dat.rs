@@ -1,14 +1,17 @@
+use anyhow::anyhow;
 use quick_xml::events::attributes::Attribute;
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::name::QName;
 use quick_xml::reader::Reader;
 use quick_xml::Writer;
 use std::borrow::Cow;
-use std::io::{Cursor, Write};
+use std::io::{Cursor, ErrorKind, Write};
+use std::path::PathBuf;
 use std::{env, fs, vec};
-use std::{error::Error, path::PathBuf};
 
 use crate::files::{ALL_NON_ZIPPED_CONTENT, ARTWORK, SAMPLES};
+
+type Result<T> = anyhow::Result<T>;
 
 struct GameConfig {
     path: PathBuf,
@@ -19,7 +22,7 @@ struct GameConfig {
 /// # Errors
 ///
 /// Will return `Err` if an error occured during XML read or XML write.
-pub fn generate_output(output_file_path: &String, version: f32) -> Result<(), Box<dyn Error>> {
+pub fn generate_output(output_file_path: &String, version: f32) -> Result<()> {
     let temp_dir = env::temp_dir();
     let all_content_path = PathBuf::from(&temp_dir).join(ALL_NON_ZIPPED_CONTENT);
     let artwork_path = PathBuf::from(&temp_dir).join(ARTWORK);
@@ -67,10 +70,7 @@ pub fn generate_output(output_file_path: &String, version: f32) -> Result<(), Bo
     Ok(())
 }
 
-fn add_games(
-    writer: &mut Writer<Cursor<Vec<u8>>>,
-    config: &GameConfig,
-) -> Result<(), Box<dyn Error>> {
+fn add_games(writer: &mut Writer<Cursor<Vec<u8>>>, config: &GameConfig) -> Result<()> {
     enum State {
         Datafile,
         Machine,
@@ -103,10 +103,10 @@ fn add_games(
                     let add_dir = dirs.is_some() && dirs.unwrap().contains(&value);
 
                     let mut game = BytesStart::new("game");
-                    game.extend_attributes(e.attributes().map(Result::unwrap));
+                    game.extend_attributes(e.attributes().map(|attr| attr.unwrap()));
                     if add_dir {
                         let mut dir = BytesStart::new("dir");
-                        dir.extend_attributes(e.attributes().map(Result::unwrap));
+                        dir.extend_attributes(e.attributes().map(|attr| attr.unwrap()));
                         assert!(writer.write_event(Event::Start(dir)).is_ok());
                         close_dir = true;
                     }
@@ -210,16 +210,22 @@ fn add_header(writer: &mut Writer<Cursor<Vec<u8>>>, name: &str, value: &str) {
     assert!(writer.write_event(Event::End(BytesEnd::new(name))).is_ok());
 }
 
-fn write_to_file(
-    writer: Writer<Cursor<Vec<u8>>>,
-    output_file_path: &String,
-) -> Result<(), Box<dyn Error>> {
+fn write_to_file(writer: Writer<Cursor<Vec<u8>>>, output_file_path: &String) -> Result<()> {
     let result = writer.into_inner().into_inner();
-    let mut file = fs::OpenOptions::new()
-        .create(true)
-        .truncate(true)
+    let file_result = fs::OpenOptions::new()
+        .create_new(true)
         .write(true)
-        .open(output_file_path)?;
+        .open(output_file_path);
+
+    let mut file = match file_result {
+        Ok(file) => file,
+        Err(e) => match e.kind() {
+            ErrorKind::AlreadyExists => {
+                return Err(anyhow!("file {} already exists", output_file_path))
+            }
+            _ => return Err(e.into()),
+        },
+    };
 
     file.write_all(&result)?;
 
