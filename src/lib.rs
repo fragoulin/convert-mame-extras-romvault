@@ -84,3 +84,103 @@ pub fn run(config: &Config) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use std::env;
+
+    use super::*;
+
+    #[test]
+    fn it_builds_configuration_with_output_file() {
+        let input_file_path = String::from("MAME 0.264 EXTRAs.zip");
+        let output_file_path = String::from("extras.dat");
+        let args = [
+            String::from("convert-mame-extras-romvault"),
+            input_file_path.clone(),
+            output_file_path.clone(),
+        ]
+        .into_iter();
+        let config_result = Config::build(args);
+        assert!(config_result.is_ok());
+        let config = match config_result {
+            Ok(config) => config,
+            Err(e) => panic!("cannot read config: {}", e),
+        };
+        assert_eq!(
+            input_file_path,
+            config.input_file_path.display().to_string()
+        );
+        assert_eq!(
+            output_file_path,
+            config.output_file_path.display().to_string()
+        );
+        assert_eq!(0.264, config.version);
+        assert_eq!(env::temp_dir(), config.temp_dir_path);
+    }
+
+    #[test]
+    fn it_builds_configuration_without_output_file() {
+        let input_file_path = String::from("MAME 0.264 EXTRAs.zip");
+        let output_file_path = String::from("MAME 0.264 EXTRAs.dat");
+        let args = [
+            String::from("convert-mame-extras-romvault"),
+            input_file_path.clone(),
+        ]
+        .into_iter();
+        let config_result = Config::build(args);
+        assert!(config_result.is_ok());
+        let config = match config_result {
+            Ok(config) => config,
+            Err(e) => panic!("cannot read config: {}", e),
+        };
+        assert_eq!(
+            input_file_path,
+            config.input_file_path.display().to_string()
+        );
+        assert_eq!(
+            output_file_path,
+            config.output_file_path.display().to_string()
+        );
+        assert_eq!(0.264, config.version);
+        assert_eq!(env::temp_dir(), config.temp_dir_path);
+    }
+
+    #[test]
+    fn it_builds_configuration_without_version() {
+        let input_file_path = String::from("MAME EXTRAs.zip");
+        let output_file_path = String::from("MAME EXTRAs.dat");
+        let args = [
+            String::from("convert-mame-extras-romvault"),
+            input_file_path.clone(),
+        ]
+        .into_iter();
+        let config_result = Config::build(args);
+        assert!(config_result.is_ok());
+        let config = match config_result {
+            Ok(config) => config,
+            Err(e) => panic!("cannot read config: {}", e),
+        };
+        assert_eq!(
+            input_file_path,
+            config.input_file_path.display().to_string()
+        );
+        assert_eq!(
+            output_file_path,
+            config.output_file_path.display().to_string()
+        );
+        assert_eq!(0.01, config.version);
+        assert_eq!(env::temp_dir(), config.temp_dir_path);
+    }
+
+    #[test]
+    fn it_fails_to_build_configuration_without_input_file() {
+        let args = [String::from("convert-mame-extras-romvault")].into_iter();
+        let config_result = Config::build(args);
+        assert!(config_result.is_err());
+        let _ = match config_result {
+            Ok(_) => (),
+            Err(e) => assert_eq!("missing input file", e.to_string()),
+        };
+    }
+}

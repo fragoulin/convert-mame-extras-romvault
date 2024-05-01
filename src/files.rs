@@ -45,13 +45,15 @@ pub fn cleanup_temp_dir(directory: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use std::env;
+
     use super::*;
 
     #[test]
     fn it_extracts_version_0264() {
         let input_file_path = "MAME 0.264 EXTRAs.zip";
         let version = extract_version(&PathBuf::from(&input_file_path));
-        assert_eq!(true, version.is_some());
+        assert!(version.is_some());
         assert_eq!(0.264, version.unwrap());
     }
 
@@ -59,7 +61,7 @@ mod tests {
     fn it_extracts_version_0264_if_lowercase() {
         let input_file_path = "mame 0.264 extras.zip";
         let version = extract_version(&PathBuf::from(&input_file_path));
-        assert_eq!(true, version.is_some());
+        assert!(version.is_some());
         assert_eq!(0.264, version.unwrap());
     }
 
@@ -67,7 +69,7 @@ mod tests {
     fn it_extracts_version_10() {
         let input_file_path = "MAME 1.0 EXTRAs.zip";
         let version = extract_version(&PathBuf::from(&input_file_path));
-        assert_eq!(true, version.is_some());
+        assert!(version.is_some());
         assert_eq!(1.0, version.unwrap());
     }
 
@@ -75,13 +77,39 @@ mod tests {
     fn it_handles_file_without_version() {
         let input_file_path = "MAME EXTRAs.zip";
         let version = extract_version(&PathBuf::from(&input_file_path));
-        assert_eq!(true, version.is_none());
+        assert!(version.is_none());
     }
 
     #[test]
     fn it_handles_empty_file() {
         let input_file_path = "";
         let version = extract_version(&PathBuf::from(&input_file_path));
-        assert_eq!(true, version.is_none());
+        assert!(version.is_none());
+    }
+
+    #[test]
+    fn it_cleans_temporary_directory() {
+        let temp_dir = env::temp_dir();
+        // Create empty files in temporary directory
+        for file in FILES {
+            let file_path = temp_dir.join(&file);
+            let file_result = fs::OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(&file_path);
+            assert!(
+                file_result.is_ok(),
+                "Failed to create {}",
+                &file_path.display()
+            );
+        }
+        let result = cleanup_temp_dir(&temp_dir);
+        assert!(result.is_ok());
+        // Check if files have been correctly removed
+        for file in FILES {
+            let file_path = temp_dir.join(&file);
+            let metadata_result = fs::metadata(file_path);
+            assert!(metadata_result.is_err());
+        }
     }
 }
