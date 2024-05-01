@@ -3,14 +3,9 @@ pub const ARTWORK: &str = "artwork.dat";
 pub const SAMPLES: &str = "samples.dat";
 pub const FILES: [&str; 3] = [ALL_NON_ZIPPED_CONTENT, ARTWORK, SAMPLES];
 
-use anyhow::anyhow;
-use regex::RegexBuilder;
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::path::Path;
 
-type Result<T> = anyhow::Result<T>;
+use regex::RegexBuilder;
 
 /// Tries to extract MAME version from specified input file path.
 pub fn extract_version(input_file_path: &Path) -> Option<f32> {
@@ -27,25 +22,9 @@ pub fn extract_version(input_file_path: &Path) -> Option<f32> {
     }
 }
 
-/// Tries to cleanup files extracted from input ZIP file in temporary directory.
-///
-/// # Errors
-///
-/// Will return `Err` if files cannot be removed.
-pub fn cleanup_temp_dir(directory: &Path) -> Result<()> {
-    for file in FILES {
-        let path = PathBuf::from(&directory).join(file);
-        if fs::remove_file(&path).is_err() {
-            return Err(anyhow!("the file `{}` cannot be removed", path.display()));
-        }
-    }
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
-    use std::env;
+    use std::path::PathBuf;
 
     use super::*;
 
@@ -85,31 +64,5 @@ mod tests {
         let input_file_path = "";
         let version = extract_version(&PathBuf::from(&input_file_path));
         assert!(version.is_none());
-    }
-
-    #[test]
-    fn it_cleans_temporary_directory() {
-        let temp_dir = env::temp_dir();
-        // Create empty files in temporary directory
-        for file in FILES {
-            let file_path = temp_dir.join(&file);
-            let file_result = fs::OpenOptions::new()
-                .create_new(true)
-                .write(true)
-                .open(&file_path);
-            assert!(
-                file_result.is_ok(),
-                "Failed to create {}",
-                &file_path.display()
-            );
-        }
-        let result = cleanup_temp_dir(&temp_dir);
-        assert!(result.is_ok());
-        // Check if files have been correctly removed
-        for file in FILES {
-            let file_path = temp_dir.join(&file);
-            let metadata_result = fs::metadata(file_path);
-            assert!(metadata_result.is_err());
-        }
     }
 }

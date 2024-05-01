@@ -7,7 +7,7 @@ use quick_xml::Writer;
 use std::borrow::Cow;
 use std::io::{Cursor, ErrorKind, Write};
 use std::path::{Path, PathBuf};
-use std::{env, fs, vec};
+use std::{fs, vec};
 
 use crate::files::{ALL_NON_ZIPPED_CONTENT, ARTWORK, SAMPLES};
 
@@ -22,8 +22,7 @@ struct GameConfig {
 /// # Errors
 ///
 /// Will return `Err` if an error occured during XML read or XML write.
-pub fn generate_output(output_file_path: &Path, version: f32) -> Result<()> {
-    let temp_dir = env::temp_dir();
+pub fn generate_output(output_file_path: &Path, version: f32, temp_dir: &Path) -> Result<()> {
     let all_content_path = PathBuf::from(&temp_dir).join(ALL_NON_ZIPPED_CONTENT);
     let artwork_path = PathBuf::from(&temp_dir).join(ARTWORK);
     let samples_path = PathBuf::from(&temp_dir).join(SAMPLES);
