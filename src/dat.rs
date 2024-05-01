@@ -22,7 +22,7 @@ struct GameConfig {
 /// # Errors
 ///
 /// Will return `Err` if an error occured during XML read or XML write.
-pub fn generate_output(output_file_path: &String, version: f32) -> Result<()> {
+pub fn generate_output(output_file_path: &PathBuf, version: f32) -> Result<()> {
     let temp_dir = env::temp_dir();
     let all_content_path = PathBuf::from(&temp_dir).join(ALL_NON_ZIPPED_CONTENT);
     let artwork_path = PathBuf::from(&temp_dir).join(ARTWORK);
@@ -210,7 +210,7 @@ fn add_header(writer: &mut Writer<Cursor<Vec<u8>>>, name: &str, value: &str) {
     assert!(writer.write_event(Event::End(BytesEnd::new(name))).is_ok());
 }
 
-fn write_to_file(writer: Writer<Cursor<Vec<u8>>>, output_file_path: &String) -> Result<()> {
+fn write_to_file(writer: Writer<Cursor<Vec<u8>>>, output_file_path: &PathBuf) -> Result<()> {
     let result = writer.into_inner().into_inner();
     let file_result = fs::OpenOptions::new()
         .create_new(true)
@@ -221,7 +221,10 @@ fn write_to_file(writer: Writer<Cursor<Vec<u8>>>, output_file_path: &String) -> 
         Ok(file) => file,
         Err(e) => match e.kind() {
             ErrorKind::AlreadyExists => {
-                return Err(anyhow!("file {} already exists", output_file_path))
+                return Err(anyhow!(
+                    "file {} already exists",
+                    output_file_path.display()
+                ))
             }
             _ => return Err(e.into()),
         },

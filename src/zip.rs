@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use std::fs::{self, File};
 use std::io::{BufReader, ErrorKind};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use zip::ZipArchive;
 
 use crate::files::FILES;
@@ -9,25 +9,28 @@ use crate::files::FILES;
 type Result<T> = anyhow::Result<T>;
 
 /// Check if input file is accessible, is a valid Zip, and contains the expected entries.
-pub fn check_input_file(input_file_path: &String) -> Result<ZipArchive<BufReader<File>>> {
+pub fn check_input_file(input_file_path: &PathBuf) -> Result<ZipArchive<BufReader<File>>> {
     let fname = Path::new(&input_file_path);
 
     // Check if input file exists and can be accessed
     if let Err(e) = fname.metadata() {
         match e.kind() {
             ErrorKind::NotFound => {
-                return Err(anyhow!("the file `{input_file_path}` does not exist"));
+                return Err(anyhow!(
+                    "the file `{}` does not exist",
+                    input_file_path.display()
+                ));
             }
             ErrorKind::PermissionDenied => {
                 return Err(anyhow!(
                     "you have no permission to access file {0}",
-                    String::from(input_file_path)
+                    input_file_path.display().to_string()
                 ))
             }
             _ => {
                 return Err(anyhow!(
                     "the file {} cannot be loaded",
-                    String::from(input_file_path)
+                    input_file_path.display().to_string()
                 ))
             }
         }
@@ -39,7 +42,7 @@ pub fn check_input_file(input_file_path: &String) -> Result<ZipArchive<BufReader
         Err(_) => {
             return Err(anyhow!(
                 "the file {} does not exist",
-                String::from(input_file_path)
+                input_file_path.display().to_string()
             ))
         }
     };
@@ -52,7 +55,7 @@ pub fn check_input_file(input_file_path: &String) -> Result<ZipArchive<BufReader
         Err(_) => {
             return Err(anyhow!(
                 "the file {} is not a valid Zip file",
-                String::from(input_file_path)
+                input_file_path.display().to_string()
             ))
         }
     };

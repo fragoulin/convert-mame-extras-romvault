@@ -10,8 +10,8 @@ use std::{env::temp_dir, path::PathBuf};
 type Result<T> = anyhow::Result<T>;
 
 pub struct Config {
-    input_file_path: String,
-    output_file_path: String,
+    input_file_path: PathBuf,
+    output_file_path: PathBuf,
     version: f32,
     pub temp_dir_path: PathBuf,
 }
@@ -19,15 +19,21 @@ pub struct Config {
 impl Config {
     /// # Errors
     ///
-    /// Will return `Err` if input file or output file arguments are missing.
+    /// Will return `Err` if input file argument is missing.
     pub fn build(mut args: impl Iterator<Item = String>) -> Result<Config> {
-        args.next();
+        args.next(); // Skip executable name
 
-        let Some(input_file_path) = args.next() else {
-            return Err(anyhow!("missing input file"));
+        let input_file_path = match args.next() {
+            Some(input_file_path) => PathBuf::from(&input_file_path),
+            None => return Err(anyhow!("missing input file")),
         };
-        let Some(output_file_path) = args.next() else {
-            return Err(anyhow!("missing output file"));
+        let output_file_path = match args.next() {
+            Some(output_file_path) => PathBuf::from(&output_file_path),
+            None => {
+                let mut output_file_path = PathBuf::from(&input_file_path);
+                output_file_path.set_extension("dat");
+                output_file_path
+            }
         };
 
         let version = extract_version(&input_file_path).unwrap_or(0.01);
@@ -52,21 +58,22 @@ pub fn run(config: &Config) -> Result<()> {
 
     println!(
         "Unpacking {} in {}",
-        &config.input_file_path,
+        &config.input_file_path.display(),
         &config.temp_dir_path.display()
     );
 
     if archive.extract(&config.temp_dir_path).is_err() {
         return Err(anyhow!(
             "failed to extract zip file {} into directory {}",
-            String::from(&config.input_file_path),
+            String::from(&config.input_file_path.display().to_string()),
             &config.temp_dir_path.display()
         ));
     }
 
     println!(
         "Generating {} for version {}",
-        config.output_file_path, config.version
+        config.output_file_path.display(),
+        config.version
     );
 
     generate_output(&config.output_file_path, config.version)?;
