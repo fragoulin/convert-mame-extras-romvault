@@ -1,0 +1,4 @@
+[alias]
+build_win32 = "build --target i686-pc-windows-gnu --release"
+build_win64 = "build --target x86_64-pc-windows-gnu --release"
+build_linux64 = "build --release"
