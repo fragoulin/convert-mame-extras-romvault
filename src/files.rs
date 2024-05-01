@@ -5,7 +5,10 @@ pub const FILES: [&str; 3] = [ALL_NON_ZIPPED_CONTENT, ARTWORK, SAMPLES];
 
 use anyhow::anyhow;
 use regex::RegexBuilder;
-use std::{fs, path::{Path, PathBuf}};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 type Result<T> = anyhow::Result<T>;
 
@@ -29,7 +32,7 @@ pub fn extract_version(input_file_path: &Path) -> Option<f32> {
 /// # Errors
 ///
 /// Will return `Err` if files cannot be removed.
-pub fn cleanup_temp_dir(directory: &PathBuf) -> Result<()> {
+pub fn cleanup_temp_dir(directory: &Path) -> Result<()> {
     for file in FILES {
         let path = PathBuf::from(&directory).join(file);
         if fs::remove_file(&path).is_err() {

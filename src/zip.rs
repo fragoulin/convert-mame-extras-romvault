@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use std::fs::{self, File};
 use std::io::{BufReader, ErrorKind};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use zip::ZipArchive;
 
 use crate::files::FILES;
@@ -9,7 +9,7 @@ use crate::files::FILES;
 type Result<T> = anyhow::Result<T>;
 
 /// Check if input file is accessible, is a valid Zip, and contains the expected entries.
-pub fn check_input_file(input_file_path: &PathBuf) -> Result<ZipArchive<BufReader<File>>> {
+pub fn check_input_file(input_file_path: &Path) -> Result<ZipArchive<BufReader<File>>> {
     let fname = Path::new(&input_file_path);
 
     // Check if input file exists and can be accessed

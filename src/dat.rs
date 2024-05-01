@@ -6,7 +6,7 @@ use quick_xml::reader::Reader;
 use quick_xml::Writer;
 use std::borrow::Cow;
 use std::io::{Cursor, ErrorKind, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{env, fs, vec};
 
 use crate::files::{ALL_NON_ZIPPED_CONTENT, ARTWORK, SAMPLES};
@@ -22,7 +22,7 @@ struct GameConfig {
 /// # Errors
 ///
 /// Will return `Err` if an error occured during XML read or XML write.
-pub fn generate_output(output_file_path: &PathBuf, version: f32) -> Result<()> {
+pub fn generate_output(output_file_path: &Path, version: f32) -> Result<()> {
     let temp_dir = env::temp_dir();
     let all_content_path = PathBuf::from(&temp_dir).join(ALL_NON_ZIPPED_CONTENT);
     let artwork_path = PathBuf::from(&temp_dir).join(ARTWORK);
@@ -210,7 +210,7 @@ fn add_header(writer: &mut Writer<Cursor<Vec<u8>>>, name: &str, value: &str) {
     assert!(writer.write_event(Event::End(BytesEnd::new(name))).is_ok());
 }
 
-fn write_to_file(writer: Writer<Cursor<Vec<u8>>>, output_file_path: &PathBuf) -> Result<()> {
+fn write_to_file(writer: Writer<Cursor<Vec<u8>>>, output_file_path: &Path) -> Result<()> {
     let result = writer.into_inner().into_inner();
     let file_result = fs::OpenOptions::new()
         .create_new(true)
