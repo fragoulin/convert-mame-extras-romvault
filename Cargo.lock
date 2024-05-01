@@ -126,7 +126,6 @@ name = "convert-mame-extras-romvault"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "log",
  "quick-xml",
  "regex",
  "zip",
