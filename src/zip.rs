@@ -77,6 +77,8 @@ pub fn check_input_file(input_file_path: &Path) -> Result<ZipArchive<BufReader<F
 mod tests {
     use std::env;
 
+    use zip::write::SimpleFileOptions;
+
     use super::*;
 
     #[test]
@@ -126,14 +128,33 @@ mod tests {
 
     #[test]
     fn it_should_handle_missing_all_content_file_in_zip() {
-        let entry = FILES[0];
+        it_should_handle_missing_file_in_zip(FILES[0], "it_should_handle_missing_all_content_file_in_zip.zip", FILES[1], FILES[2]);
+    }
+
+    #[test]
+    fn it_should_handle_missing_artwork_file_in_zip() {
+        it_should_handle_missing_file_in_zip(FILES[1], "it_should_handle_missing_artwork_file_in_zip.zip", FILES[0], FILES[2]);
+    }
+
+    #[test]
+    fn it_should_handle_missing_samples_file_in_zip() {
+        it_should_handle_missing_file_in_zip(FILES[2], "it_should_handle_missing_samples_file_in_zip.zip", FILES[0], FILES[1]);
+    }
+
+    fn it_should_handle_missing_file_in_zip(entry: &str, file_path: &str, file1: &str, file2: &str) {
         let temp_dir = env::temp_dir();
-        let file_path = "it_should_handle_missing_all_content_file_in_zip.zip";
         let fname = temp_dir.join(file_path);
         let file_result = fs::OpenOptions::new().create(true).write(true).open(&fname);
         assert!(file_result.is_ok());
 
         let mut zip = zip::ZipWriter::new(file_result.unwrap());
+        let options = SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored)
+            .unix_permissions(0o755);
+        let start_file_result = zip.start_file(file1, options);
+        assert!(start_file_result.is_ok());
+        let start_file_result = zip.start_file(file2, options);
+        assert!(start_file_result.is_ok());
         let zip_finish_result = zip.finish();
         assert!(zip_finish_result.is_ok());
 
