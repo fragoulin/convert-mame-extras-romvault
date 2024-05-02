@@ -156,14 +156,14 @@ jobs:
       shell: bash
       if: matrix.os == 'windows-latest'
       run: |
-        7z a "$ARCHIVE.zip" "$BIN"
+        zip -j "$ARCHIVE.zip" "$BIN"
         echo "ASSET=$ARCHIVE.zip" >> $GITHUB_ENV
 
     - name: Build archive (Unix)
       shell: bash
       if: matrix.os != 'windows-latest'
       run: |
-        tar czf "$ARCHIVE.tar.gz" "$BIN"
+        tar czf "$ARCHIVE.tar.gz" --directory=target/${{ matrix.target }}/release "$BIN"
         echo "ASSET=$ARCHIVE.tar.gz" >> $GITHUB_ENV
 
     - name: Upload release archive
