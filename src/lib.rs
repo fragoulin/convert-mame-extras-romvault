@@ -92,11 +92,12 @@ fn run(config: &Config) -> Result<()> {
 
     println!("Unpacking {}", &config.input_file_path.display(),);
 
-    if archive.extract(&config.temp_dir_path.path()).is_err() {
+    let result = archive.extract(&config.temp_dir_path.path());
+    if result.is_err() {
         return Err(anyhow!(
-            "failed to extract zip file {} into directory {}",
+            "failed to extract zip file `{}` (`{}`)",
             String::from(&config.input_file_path.display().to_string()),
-            &config.temp_dir_path.path().display()
+            result.err().unwrap(),
         ));
     }
 
