@@ -152,12 +152,6 @@ jobs:
         version="${{ needs.create-release.outputs.version }}"
         echo "ARCHIVE=convert-mame-extras-romvault-$version-${{ matrix.target }}" >> $GITHUB_ENV
 
-    - name: Creating directory for archive
-      shell: bash
-      run: |
-        mkdir -p "$ARCHIVE"/{complete,doc}
-        cp "$BIN" "$ARCHIVE"/
-
     - name: Build archive (Windows)
       shell: bash
       if: matrix.os == 'windows-latest'
