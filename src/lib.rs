@@ -50,23 +50,22 @@ impl Config {
     }
 }
 
+#[must_use]
 pub fn real_main(args: &[String]) -> i32 {
     let now = Instant::now();
 
     let config_result = Config::build(args);
-    if config_result.is_err() {
-        eprintln!(
-            "Problem parsing arguments: {}",
-            config_result.err().unwrap()
-        );
-        print_usage();
-        return 1;
-    }
+    let config = match config_result {
+        Ok(config) => config,
+        Err(err) => {
+            eprintln!("Problem parsing arguments: {err}",);
+            print_usage();
+            return 1;
+        }
+    };
 
-    let config = config_result.unwrap();
-    let run_result = run(&config);
-    if run_result.is_err() {
-        eprintln!("Error: {}", run_result.err().unwrap());
+    if let Err(err) = run(&config) {
+        eprintln!("Error: {err}");
         return 1;
     }
 

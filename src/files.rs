@@ -8,11 +8,14 @@ use std::path::Path;
 use regex::RegexBuilder;
 
 /// Tries to extract MAME version from specified input file path.
+#[must_use]
 pub fn extract_version(input_file_path: &Path) -> Option<f32> {
-    let re = RegexBuilder::new(r"MAME (?<version>\d\.\d+) EXTRAs\.zip$")
+    let Ok(re) = RegexBuilder::new(r"MAME (?<version>\d\.\d+) EXTRAs\.zip$")
         .case_insensitive(true)
         .build()
-        .unwrap();
+    else {
+        return None;
+    };
     let file_path = input_file_path.display().to_string();
     let caps = re.captures(file_path.as_str())?;
     let version = caps["version"].parse::<f32>();

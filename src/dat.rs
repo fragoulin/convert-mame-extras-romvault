@@ -102,10 +102,10 @@ fn add_games(writer: &mut Writer<Cursor<Vec<u8>>>, config: &GameConfig) -> Resul
                     let add_dir = dirs.is_some() && dirs.unwrap().contains(&value);
 
                     let mut game = BytesStart::new("game");
-                    game.extend_attributes(e.attributes().map(|attr| attr.unwrap()));
+                    game.extend_attributes(e.attributes().map(std::result::Result::unwrap));
                     if add_dir {
                         let mut dir = BytesStart::new("dir");
-                        dir.extend_attributes(e.attributes().map(|attr| attr.unwrap()));
+                        dir.extend_attributes(e.attributes().map(std::result::Result::unwrap));
                         assert!(writer.write_event(Event::Start(dir)).is_ok());
                         close_dir = true;
                     }
