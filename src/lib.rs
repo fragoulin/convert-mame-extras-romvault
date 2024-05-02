@@ -21,7 +21,7 @@ impl Config {
     /// # Errors
     ///
     /// Will return `Err` if input file argument is missing.
-    fn build(args: &[String]) -> Result<Config> {
+    fn build(args: &[String]) -> Result<Self> {
         if args.is_empty() {
             return Err(anyhow!("missing input file"));
         }
@@ -41,7 +41,7 @@ impl Config {
 
         let temp_dir_path = TempDir::new().unwrap();
 
-        Ok(Config {
+        Ok(Self {
             input_file_path,
             output_file_path,
             version,

@@ -18,11 +18,11 @@ pub fn extract_version(input_file_path: &Path) -> Option<f32> {
     };
     let file_path = input_file_path.display().to_string();
     let caps = re.captures(file_path.as_str())?;
-    let version = caps["version"].parse::<f32>();
-    match version {
-        Ok(version) => Some(version),
-        Err(_) => None,
-    }
+    let Ok(version) = caps["version"].parse::<f32>() else {
+        return None;
+    };
+
+    Some(version)
 }
 
 #[cfg(test)]

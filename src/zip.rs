@@ -17,8 +17,8 @@ pub fn check_input_file(input_file_path: &Path) -> Result<ZipArchive<BufReader<F
     let fname = Path::new(&input_file_path);
 
     // Check if input file exists and can be accessed
-    if let Err(e) = fname.metadata() {
-        match e.kind() {
+    if let Err(err) = fname.metadata() {
+        match err.kind() {
             ErrorKind::NotFound => {
                 return Err(anyhow!(
                     "the file `{}` does not exist",

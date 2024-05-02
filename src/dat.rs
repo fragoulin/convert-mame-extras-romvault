@@ -94,18 +94,18 @@ fn add_games(writer: &mut Writer<Cursor<Vec<u8>>>, config: &GameConfig) -> Resul
 
     loop {
         match (&state, reader.read_event_into(&mut buf)) {
-            (State::Datafile, Ok(Event::Start(e))) => {
-                if e.name().as_ref() == b"machine" {
+            (State::Datafile, Ok(Event::Start(tag))) => {
+                if tag.name().as_ref() == b"machine" {
                     state = State::Machine;
-                    let name_attribute = e.try_get_attribute("name")?.unwrap();
+                    let name_attribute = tag.try_get_attribute("name")?.unwrap();
                     let value = String::from_utf8(name_attribute.value.to_vec())?;
                     let add_dir = dirs.is_some() && dirs.unwrap().contains(&value);
 
                     let mut game = BytesStart::new("game");
-                    game.extend_attributes(e.attributes().map(std::result::Result::unwrap));
+                    game.extend_attributes(tag.attributes().map(std::result::Result::unwrap));
                     if add_dir {
                         let mut dir = BytesStart::new("dir");
-                        dir.extend_attributes(e.attributes().map(std::result::Result::unwrap));
+                        dir.extend_attributes(tag.attributes().map(std::result::Result::unwrap));
                         assert!(writer.write_event(Event::Start(dir)).is_ok());
                         close_dir = true;
                     }
@@ -145,7 +145,7 @@ fn add_games(writer: &mut Writer<Cursor<Vec<u8>>>, config: &GameConfig) -> Resul
                 }
             }
             (_, Ok(Event::Eof)) => break,
-            (_, Err(e)) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+            (_, Err(err)) => panic!("Error at position {}: {:?}", reader.buffer_position(), err),
             _ => (),
         }
         buf.clear();
@@ -218,14 +218,14 @@ fn write_to_file(writer: Writer<Cursor<Vec<u8>>>, output_file_path: &Path) -> Re
 
     let mut file = match file_result {
         Ok(file) => file,
-        Err(e) => match e.kind() {
+        Err(err) => match err.kind() {
             ErrorKind::AlreadyExists => {
                 return Err(anyhow!(
                     "file {} already exists",
                     output_file_path.display()
                 ))
             }
-            _ => return Err(e.into()),
+            _ => return Err(err.into()),
         },
     };
 
