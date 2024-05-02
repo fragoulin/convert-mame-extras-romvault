@@ -156,14 +156,14 @@ jobs:
       shell: bash
       if: matrix.os == 'windows-latest'
       run: |
-        zip -j "$ARCHIVE.zip" "$BIN"
+        7z a "$ARCHIVE.zip" "./$BIN"
         echo "ASSET=$ARCHIVE.zip" >> $GITHUB_ENV
 
     - name: Build archive (Unix)
       shell: bash
       if: matrix.os != 'windows-latest'
       run: |
-        tar czf "$ARCHIVE.tar.gz" --directory=target/${{ matrix.target }}/release "$BIN"
+        tar czf "$ARCHIVE.tar.gz" --directory=target/${{ matrix.target }}/release convert-mame-extras-romvault
         echo "ASSET=$ARCHIVE.tar.gz" >> $GITHUB_ENV
 
     - name: Upload release archive
