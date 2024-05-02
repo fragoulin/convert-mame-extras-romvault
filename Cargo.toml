@@ -28,3 +28,4 @@ ring = "0.17.8"
 [lints.clippy]
 pedantic = "warn"
 nursery = "warn"
+cargo = "warn"
