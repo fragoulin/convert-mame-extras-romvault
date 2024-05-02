@@ -22,7 +22,7 @@ impl Config {
     ///
     /// Will return `Err` if input file argument is missing.
     fn build(args: &[String]) -> Result<Config> {
-        if args.len() == 0 {
+        if args.is_empty() {
             return Err(anyhow!("missing input file"));
         }
 
@@ -92,7 +92,7 @@ fn run(config: &Config) -> Result<()> {
 
     println!("Unpacking {}", &config.input_file_path.display(),);
 
-    let result = archive.extract(&config.temp_dir_path.path());
+    let result = archive.extract(config.temp_dir_path.path());
     if result.is_err() {
         return Err(anyhow!(
             "failed to extract zip file `{}` (`{}`)",
@@ -192,7 +192,7 @@ mod tests {
         let args = vec![];
         let config_result = Config::build(&args);
         assert!(config_result.is_err());
-        let _ = match config_result {
+        match config_result {
             Ok(_) => (),
             Err(e) => assert_eq!("missing input file", e.to_string()),
         };

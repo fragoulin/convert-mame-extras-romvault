@@ -87,7 +87,7 @@ mod tests {
         let file = Path::new("foo.txt");
         let result = check_input_file(file);
         assert!(result.is_err());
-        let _ = match result {
+        match result {
             Ok(_) => (),
             Err(e) => assert_eq!("the file `foo.txt` does not exist", e.to_string()),
         };
@@ -98,7 +98,7 @@ mod tests {
         let file = Path::new("/root/foo.txt");
         let result = check_input_file(file);
         assert!(result.is_err());
-        let _ = match result {
+        match result {
             Ok(_) => (),
             Err(e) => assert_eq!(
                 "you have no permission to access file `/root/foo.txt`",
@@ -112,11 +112,15 @@ mod tests {
         let temp_dir = env::temp_dir();
         let file_path = "it_should_handle_invalid_zip.zip";
         let fname = temp_dir.join(file_path);
-        let file_result = fs::OpenOptions::new().create(true).write(true).open(&fname);
+        let file_result = fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(&fname);
         assert!(file_result.is_ok());
         let result = check_input_file(&fname);
         assert!(result.is_err());
-        let _ = match result {
+        match result {
             Ok(_) => (),
             Err(e) => assert_eq!(
                 format!("the file `{}` is not a valid Zip file", fname.display()),
@@ -165,7 +169,11 @@ mod tests {
     ) {
         let temp_dir = env::temp_dir();
         let fname = temp_dir.join(file_path);
-        let file_result = fs::OpenOptions::new().create(true).write(true).open(&fname);
+        let file_result = fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(&fname);
         assert!(file_result.is_ok());
 
         let mut zip = zip::ZipWriter::new(file_result.unwrap());
@@ -181,7 +189,7 @@ mod tests {
 
         let result = check_input_file(&fname);
         assert!(result.is_err());
-        let _ = match result {
+        match result {
             Ok(_) => (),
             Err(e) => assert_eq!(
                 format!("the entry `{}` is missing from input Zip file", entry),

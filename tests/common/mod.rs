@@ -6,17 +6,17 @@ use std::io::{BufReader, Read};
 type Result<T> = anyhow::Result<T>;
 
 pub fn compare_digests(output_file: &String, expected_file: &String) -> Result<bool> {
-    let output_file_path = File::open(&output_file)?;
+    let output_file_path = File::open(output_file)?;
     let reader = BufReader::new(output_file_path);
     let output_file_digest = sha256_digest(reader)?;
     let output_digest = HEXUPPER.encode(output_file_digest.as_ref());
 
-    let expected_file_path = File::open(&expected_file)?;
+    let expected_file_path = File::open(expected_file)?;
     let reader = BufReader::new(expected_file_path);
     let expected_file_digest = sha256_digest(reader)?;
     let expected_digest = HEXUPPER.encode(expected_file_digest.as_ref());
 
-    return Ok(expected_digest == output_digest);
+    Ok(expected_digest == output_digest)
 }
 
 pub fn sha256_digest<R: Read>(mut reader: R) -> Result<Digest> {
