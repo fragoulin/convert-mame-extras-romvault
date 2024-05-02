@@ -50,7 +50,7 @@ pub fn check_input_file(input_file_path: &Path) -> Result<ZipArchive<BufReader<F
 
     // Check if input file is a valid zip
     let archive_result = zip::ZipArchive::new(reader);
-    let mut archive = match archive_result {
+    let archive = match archive_result {
         Ok(archive) => archive,
         Err(_) => {
             return Err(anyhow!(
@@ -61,8 +61,9 @@ pub fn check_input_file(input_file_path: &Path) -> Result<ZipArchive<BufReader<F
     };
 
     // Check if input ZIP file contains all expected files
+    let entries: Vec<&str> = archive.file_names().collect();
     for name in FILES {
-        if archive.by_name(name).is_err() {
+        if !entries.contains(&name) {
             return Err(anyhow!(
                 "the entry `{}` is missing from input Zip file",
                 name
@@ -128,20 +129,40 @@ mod tests {
 
     #[test]
     fn it_should_handle_missing_all_content_file_in_zip() {
-        it_should_handle_missing_file_in_zip(FILES[0], "it_should_handle_missing_all_content_file_in_zip.zip", FILES[1], FILES[2]);
+        it_should_handle_missing_file_in_zip(
+            FILES[0],
+            "it_should_handle_missing_all_content_file_in_zip.zip",
+            FILES[1],
+            FILES[2],
+        );
     }
 
     #[test]
     fn it_should_handle_missing_artwork_file_in_zip() {
-        it_should_handle_missing_file_in_zip(FILES[1], "it_should_handle_missing_artwork_file_in_zip.zip", FILES[0], FILES[2]);
+        it_should_handle_missing_file_in_zip(
+            FILES[1],
+            "it_should_handle_missing_artwork_file_in_zip.zip",
+            FILES[0],
+            FILES[2],
+        );
     }
 
     #[test]
     fn it_should_handle_missing_samples_file_in_zip() {
-        it_should_handle_missing_file_in_zip(FILES[2], "it_should_handle_missing_samples_file_in_zip.zip", FILES[0], FILES[1]);
+        it_should_handle_missing_file_in_zip(
+            FILES[2],
+            "it_should_handle_missing_samples_file_in_zip.zip",
+            FILES[0],
+            FILES[1],
+        );
     }
 
-    fn it_should_handle_missing_file_in_zip(entry: &str, file_path: &str, file1: &str, file2: &str) {
+    fn it_should_handle_missing_file_in_zip(
+        entry: &str,
+        file_path: &str,
+        file1: &str,
+        file2: &str,
+    ) {
         let temp_dir = env::temp_dir();
         let fname = temp_dir.join(file_path);
         let file_result = fs::OpenOptions::new().create(true).write(true).open(&fname);
