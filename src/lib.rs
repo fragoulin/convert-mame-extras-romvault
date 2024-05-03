@@ -31,7 +31,8 @@ impl Config {
 
         if args.len() == 1 {
             // No output file specified
-            output_file_path = PathBuf::from(&input_file_path);
+            let input_file_name = input_file_path.file_name().unwrap();
+            output_file_path = PathBuf::from(input_file_name);
             output_file_path.set_extension("dat");
         } else {
             output_file_path = PathBuf::from(&args[1]);
