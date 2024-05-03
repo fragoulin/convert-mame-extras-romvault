@@ -9,7 +9,7 @@ use quick_xml::Writer;
 use std::borrow::Cow;
 use std::io::{Cursor, ErrorKind, Write};
 use std::path::{Path, PathBuf};
-use std::{fs, vec};
+use std::{fs, thread, vec};
 
 use crate::files::{ALL_NON_ZIPPED_CONTENT, ARTWORK, SAMPLES};
 use crate::Config;
@@ -37,6 +37,9 @@ pub fn generate_output(config: &Config) -> Result<()> {
     let artwork_path = config.temp_dir_path.path().join(ARTWORK);
     let samples_path = config.temp_dir_path.path().join(SAMPLES);
     let mut writer = Writer::new(Cursor::new(Vec::new()));
+    let mut writer_all = Writer::new(Cursor::new(Vec::new()));
+    let mut writer_artwork = Writer::new(Cursor::new(Vec::new()));
+    let mut writer_samples = Writer::new(Cursor::new(Vec::new()));
 
     // Declaration
     add_declaration(&mut writer)?;
@@ -50,26 +53,61 @@ pub fn generate_output(config: &Config) -> Result<()> {
     // Add headers
     add_headers(&mut writer, config.version)?;
 
-    let config_all = GameConfig {
-        path: all_content_path,
-        root_dir: None,
-        dirs: vec!["dats", "folders"],
-    };
-    add_games(&mut writer, &config_all)?;
+    // Spawn thread to compute all content
+    let handle_all = thread::spawn(move || {
+        let config_all = GameConfig {
+            path: all_content_path,
+            root_dir: None,
+            dirs: vec!["dats", "folders"],
+        };
+        if add_games(&mut writer_all, &config_all).is_err() {
+            return String::new();
+        }
 
-    let config_artwork = GameConfig {
-        path: artwork_path,
-        root_dir: Some("artwork"),
-        dirs: Vec::new(),
-    };
-    add_games(&mut writer, &config_artwork)?;
+        let result = writer_all.into_inner().into_inner();
+        String::from_utf8(result).unwrap_or_default()
+    });
 
-    let config_samples = GameConfig {
-        path: samples_path,
-        root_dir: Some("samples"),
-        dirs: Vec::new(),
-    };
-    add_games(&mut writer, &config_samples)?;
+    // Spawn thread to compute artwork
+    let handle_artwork = thread::spawn(move || {
+        let config_artwork = GameConfig {
+            path: artwork_path,
+            root_dir: Some("artwork"),
+            dirs: Vec::new(),
+        };
+        if add_games(&mut writer_artwork, &config_artwork).is_err() {
+            return String::new();
+        }
+
+        let result = writer_artwork.into_inner().into_inner();
+        String::from_utf8(result).unwrap_or_default()
+    });
+
+    // Spawn thread to compute samples
+    let handle_samples = thread::spawn(move || {
+        let config_samples = GameConfig {
+            path: samples_path,
+            root_dir: Some("samples"),
+            dirs: Vec::new(),
+        };
+        if add_games(&mut writer_samples, &config_samples).is_err() {
+            return String::new();
+        }
+
+        let result = writer_samples.into_inner().into_inner();
+        println!("end samples");
+        String::from_utf8(result).unwrap_or_default()
+    });
+
+    // Wait for threads to finish
+    let all = handle_all.join().unwrap_or_default();
+    let artwork = handle_artwork.join().unwrap_or_default();
+    let samples = handle_samples.join().unwrap_or_default();
+
+    // Write threads results to main writer
+    writer.write_event(Event::Text(BytesText::from_escaped(all)))?;
+    writer.write_event(Event::Text(BytesText::from_escaped(artwork)))?;
+    writer.write_event(Event::Text(BytesText::from_escaped(samples)))?;
 
     // Add end tag for datafile
     writer.write_event(Event::End(BytesEnd::new("datafile")))?;
