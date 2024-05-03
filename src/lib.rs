@@ -1,3 +1,8 @@
+//! # Convert MAME Extras Romvault
+//!
+//! This crate can be used to convert MAME Extras Zip file
+//! to a compatible format to use with Romvault.
+
 pub mod dat;
 pub mod files;
 pub mod zip;
@@ -8,13 +13,23 @@ use files::extract_version;
 use std::{path::PathBuf, time::Instant};
 use temp_dir::TempDir;
 
+/// Custom result with any context error.
 type Result<T> = anyhow::Result<T>;
 
-struct Config {
+/// Main configuration to hold various parameters:
+/// - Input file path
+/// - Output file path
+/// - Version computed from input file name
+/// - Temporary directory path
+pub struct Config {
+    /// Zip file used for input.
     input_file_path: PathBuf,
+    /// Generated dat will be written into this output file.
     output_file_path: PathBuf,
+    /// Version extracted from input Zip file name. Will be used for dat generation.
     version: f32,
-    pub temp_dir_path: TempDir,
+    /// Temporary directory to write dats extracted from Zip file into.
+    temp_dir_path: TempDir,
 }
 
 impl Config {
@@ -38,7 +53,8 @@ impl Config {
             output_file_path = PathBuf::from(&args[1]);
         }
 
-        let version = extract_version(&input_file_path).unwrap_or(0.01);
+        let file_name = input_file_path.display().to_string();
+        let version = extract_version(file_name.as_str()).unwrap_or(0.01);
 
         let temp_dir_path = TempDir::new().unwrap();
 
@@ -51,6 +67,10 @@ impl Config {
     }
 }
 
+/// Parse arguments and tries to generate output dat file.
+///
+/// Returns 0 if no error occurred.
+/// Returns 1 in case of error.
 #[must_use]
 pub fn real_main(args: &[String]) -> i32 {
     let now = Instant::now();
@@ -76,6 +96,7 @@ pub fn real_main(args: &[String]) -> i32 {
     0
 }
 
+/// Print help message on stderr.
 fn print_usage() {
     let indent = 7;
     eprintln!("Usage: convert-mame-extras-romvault <inputfile> <outputfile>");
@@ -107,11 +128,7 @@ fn run(config: &Config) -> Result<()> {
         config.version
     );
 
-    generate_output(
-        &config.output_file_path,
-        config.version,
-        config.temp_dir_path.path(),
-    )?;
+    generate_output(config)?;
 
     Ok(())
 }

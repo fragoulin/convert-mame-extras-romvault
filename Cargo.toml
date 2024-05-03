@@ -29,3 +29,7 @@ ring = "0.17.8"
 pedantic = "warn"
 nursery = "warn"
 cargo = "warn"
+missing_docs_in_private_items = "warn"
+
+[lints.rust]
+missing_docs = "warn"

@@ -1,3 +1,5 @@
+//! Generation of dat files.
+
 use anyhow::anyhow;
 use quick_xml::events::attributes::Attribute;
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
@@ -10,86 +12,100 @@ use std::path::{Path, PathBuf};
 use std::{fs, vec};
 
 use crate::files::{ALL_NON_ZIPPED_CONTENT, ARTWORK, SAMPLES};
+use crate::Config;
 
+/// Custom result with any context error.
 type Result<T> = anyhow::Result<T>;
 
-struct GameConfig {
+/// Game configuration for a specific input dat.
+struct GameConfig<'a> {
+    /// Path to input dat file.
     path: PathBuf,
-    root_dir: Option<String>,
-    dirs: Option<Vec<String>>,
+    /// Optional root dir (for artwork and samples)
+    root_dir: Option<&'a str>,
+    /// Optional directories (for dats and folders)
+    dirs: Vec<&'a str>,
 }
 
+/// Generate output file using dats from input Zip file.
+///
 /// # Errors
 ///
 /// Will return `Err` if an error occured during XML read or XML write.
-pub fn generate_output(output_file_path: &Path, version: f32, temp_dir: &Path) -> Result<()> {
-    let all_content_path = PathBuf::from(&temp_dir).join(ALL_NON_ZIPPED_CONTENT);
-    let artwork_path = PathBuf::from(&temp_dir).join(ARTWORK);
-    let samples_path = PathBuf::from(&temp_dir).join(SAMPLES);
+pub fn generate_output(config: &Config) -> Result<()> {
+    let all_content_path = config.temp_dir_path.path().join(ALL_NON_ZIPPED_CONTENT);
+    let artwork_path = config.temp_dir_path.path().join(ARTWORK);
+    let samples_path = config.temp_dir_path.path().join(SAMPLES);
     let mut writer = Writer::new(Cursor::new(Vec::new()));
 
     // Declaration
-    add_declaration(&mut writer);
+    add_declaration(&mut writer)?;
 
     // Doctype
-    add_doctype(&mut writer);
+    add_doctype(&mut writer)?;
 
     // Add start tag for datafile
     writer.write_event(Event::Start(BytesStart::new("datafile")))?;
 
     // Add headers
-    add_headers(&mut writer, version);
+    add_headers(&mut writer, config.version)?;
 
     let config_all = GameConfig {
         path: all_content_path,
         root_dir: None,
-        dirs: Some(vec![String::from("dats"), String::from("folders")]),
+        dirs: vec!["dats", "folders"],
     };
     add_games(&mut writer, &config_all)?;
 
     let config_artwork = GameConfig {
         path: artwork_path,
-        root_dir: Some(String::from("artwork")),
-        dirs: None,
+        root_dir: Some("artwork"),
+        dirs: Vec::new(),
     };
     add_games(&mut writer, &config_artwork)?;
 
     let config_samples = GameConfig {
         path: samples_path,
-        root_dir: Some(String::from("samples")),
-        dirs: None,
+        root_dir: Some("samples"),
+        dirs: Vec::new(),
     };
     add_games(&mut writer, &config_samples)?;
 
     // Add end tag for datafile
     writer.write_event(Event::End(BytesEnd::new("datafile")))?;
 
-    write_to_file(writer, output_file_path)?;
+    write_to_file(writer, &config.output_file_path)?;
 
     Ok(())
 }
 
+/// Add games for the specified configuration.
 fn add_games(writer: &mut Writer<Cursor<Vec<u8>>>, config: &GameConfig) -> Result<()> {
+    /// Helper state to parse input dat
     enum State {
+        /// Datafile section state.
         Datafile,
+        /// Machine section state.
         Machine,
+        /// Description section state.
         Description,
     }
     let mut reader = Reader::from_file(&config.path)?;
     let mut buf = Vec::new();
     let mut state = State::Datafile;
-    let dirs = config.dirs.as_ref();
+    let dirs = &config.dirs;
     let mut close_dir = false;
-    let root_dir = config.root_dir.as_ref();
+    let root_dir = config.root_dir;
+    let dir = "dir";
 
     if root_dir.is_some() {
-        let mut dir = BytesStart::new("dir");
+        let mut dir = BytesStart::new(dir);
         let attr = Attribute {
             key: QName(b"name"),
             value: Cow::from(root_dir.unwrap().as_bytes()),
         };
         dir.push_attribute(attr);
-        assert!(writer.write_event(Event::Start(dir)).is_ok());
+        writer.write_event(Event::Start(dir))?;
     }
 
     loop {
@@ -98,49 +114,51 @@ fn add_games(writer: &mut Writer<Cursor<Vec<u8>>>, config: &GameConfig) -> Resul
                 if tag.name().as_ref() == b"machine" {
                     state = State::Machine;
                     let name_attribute = tag.try_get_attribute("name")?.unwrap();
-                    let value = String::from_utf8(name_attribute.value.to_vec())?;
-                    let add_dir = dirs.is_some() && dirs.unwrap().contains(&value);
+                    if !dirs.is_empty() {
+                        let value = String::from_utf8(name_attribute.value.to_vec())?;
+
+                        if dirs.contains(&value.as_str()) {
+                            let mut dir = BytesStart::new(dir);
+                            dir.push_attribute(name_attribute.clone());
+                            writer.write_event(Event::Start(dir))?;
+                            close_dir = true;
+                        }
+                    }
 
                     let mut game = BytesStart::new("game");
-                    game.extend_attributes(tag.attributes().map(std::result::Result::unwrap));
-                    if add_dir {
-                        let mut dir = BytesStart::new("dir");
-                        dir.extend_attributes(tag.attributes().map(std::result::Result::unwrap));
-                        assert!(writer.write_event(Event::Start(dir)).is_ok());
-                        close_dir = true;
-                    }
-                    assert!(writer.write_event(Event::Start(game)).is_ok());
+                    game.push_attribute(name_attribute);
+                    writer.write_event(Event::Start(game))?;
                 }
             }
             (State::Machine, Ok(Event::Start(e))) => {
                 if e.name().as_ref() == b"description" {
                     state = State::Description;
-                    assert!(writer.write_event(Event::Start(e)).is_ok());
+                    writer.write_event(Event::Start(e))?;
                 }
             }
             (State::Description, Ok(Event::Text(e))) => {
-                assert!(writer.write_event(Event::Text(e)).is_ok());
+                writer.write_event(Event::Text(e))?;
             }
             (State::Machine, Ok(Event::Empty(e))) => {
                 if e.name().as_ref() == b"rom" {
-                    assert!(writer.write_event(Event::Empty(e)).is_ok());
+                    writer.write_event(Event::Empty(e))?;
                 }
             }
             (State::Description, Ok(Event::End(e))) => {
                 if e.name().as_ref() == b"description" {
                     state = State::Machine;
-                    assert!(writer.write_event(Event::End(e)).is_ok());
+                    writer.write_event(Event::End(e))?;
                 }
             }
             (State::Machine, Ok(Event::End(e))) => {
                 if e.name().as_ref() == b"machine" {
                     state = State::Datafile;
                     let game = BytesEnd::new("game");
-                    assert!(writer.write_event(Event::End(game)).is_ok());
+                    writer.write_event(Event::End(game))?;
                     if close_dir {
                         close_dir = false;
-                        let dir = BytesEnd::new("dir");
-                        assert!(writer.write_event(Event::End(dir)).is_ok());
+                        let dir = BytesEnd::new(dir);
+                        writer.write_event(Event::End(dir))?;
                     }
                 }
             }
@@ -152,63 +170,71 @@ fn add_games(writer: &mut Writer<Cursor<Vec<u8>>>, config: &GameConfig) -> Resul
     }
 
     if root_dir.is_some() {
-        let dir = BytesEnd::new("dir");
-        assert!(writer.write_event(Event::End(dir)).is_ok());
+        let dir = BytesEnd::new(dir);
+        writer.write_event(Event::End(dir))?;
     }
 
     Ok(())
 }
 
-fn add_declaration(writer: &mut Writer<Cursor<Vec<u8>>>) {
+/// Add XML declaration to writer
+fn add_declaration(writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<()> {
     let declaration = BytesDecl::new("1.0", Some("UTF-8"), None);
-    assert!(writer.write_event(Event::Decl(declaration)).is_ok());
+    writer.write_event(Event::Decl(declaration))?;
+
+    Ok(())
 }
 
-fn add_doctype(writer: &mut Writer<Cursor<Vec<u8>>>) {
+/// Add XML doctype to writer
+fn add_doctype(writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<()> {
     // TODO Update logiqx original DTD which doesn't support dir tags
+    /// Doctype to write to XML output
     const DOCTYPE: &str = "datafile PUBLIC \"-//Logiqx//DTD ROM Management Datafile//EN\" \"http://www.logiqx.com/Dats/datafile.dtd\"";
     let doctype = BytesText::from_escaped(DOCTYPE);
-    assert!(writer.write_event(Event::DocType(doctype)).is_ok());
+    writer.write_event(Event::DocType(doctype))?;
+
+    Ok(())
 }
 
-fn add_headers(writer: &mut Writer<Cursor<Vec<u8>>>, version: f32) {
+/// Add all expected headers to writer
+fn add_headers(writer: &mut Writer<Cursor<Vec<u8>>>, version: f32) -> Result<()> {
     let name = "header";
-    assert!(writer
-        .write_event(Event::Start(BytesStart::new(name)))
-        .is_ok());
-    add_header(writer, "name", "Extras");
+    writer.write_event(Event::Start(BytesStart::new(name)))?;
+    add_header(writer, "name", "Extras")?;
     add_header(
         writer,
         "description",
         &format!("MAME {version} Extras (all content)"),
-    );
-    add_header(writer, "category", "Standard DatFile");
-    add_header(writer, "version", &version.to_string());
-    add_header(writer, "author", "Pleasuredome");
+    )?;
+    add_header(writer, "category", "Standard DatFile")?;
+    add_header(writer, "version", &version.to_string())?;
+    add_header(writer, "author", "Pleasuredome")?;
     add_header(
         writer,
         "homepage",
         "https://github.com/fragoulin/convert-mame-extras-romvault",
-    );
+    )?;
     add_header(
         writer,
         "url",
         "https://pleasuredome.miraheze.org/wiki/MAME_EXTRAs",
-    );
-    add_header(writer, "comment", "Compatible with RomVault");
-    assert!(writer.write_event(Event::End(BytesEnd::new(name))).is_ok());
+    )?;
+    add_header(writer, "comment", "Compatible with RomVault")?;
+    writer.write_event(Event::End(BytesEnd::new(name)))?;
+
+    Ok(())
 }
 
-fn add_header(writer: &mut Writer<Cursor<Vec<u8>>>, name: &str, value: &str) {
-    assert!(writer
-        .write_event(Event::Start(BytesStart::new(name)))
-        .is_ok());
-    assert!(writer
-        .write_event(Event::Text(BytesText::new(value)))
-        .is_ok());
-    assert!(writer.write_event(Event::End(BytesEnd::new(name))).is_ok());
+/// Add header to writer.
+fn add_header(writer: &mut Writer<Cursor<Vec<u8>>>, name: &str, value: &str) -> Result<()> {
+    writer.write_event(Event::Start(BytesStart::new(name)))?;
+    writer.write_event(Event::Text(BytesText::new(value)))?;
+    writer.write_event(Event::End(BytesEnd::new(name)))?;
+
+    Ok(())
 }
 
+/// Write generated dat to specified output file.
 fn write_to_file(writer: Writer<Cursor<Vec<u8>>>, output_file_path: &Path) -> Result<()> {
     let result = writer.into_inner().into_inner();
     let file_result = fs::OpenOptions::new()

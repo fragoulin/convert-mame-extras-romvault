@@ -1,3 +1,5 @@
+//! Zip file handlers.
+
 use anyhow::anyhow;
 use std::fs::{self, File};
 use std::io::{BufReader, ErrorKind};
@@ -6,13 +8,20 @@ use zip::ZipArchive;
 
 use crate::files::FILES;
 
+/// Custom result with any context error.
 type Result<T> = anyhow::Result<T>;
 
 /// Check if input file is accessible, is a valid Zip, and contains the expected entries.
+/// Expected entries are :
+/// - all_non-zipped_content.dat
+/// - artwork.dat
+/// - samples.dat
+///
 /// # Errors
 /// - File does not exists
 /// - File not accessible (permission denied)
-/// -
+/// - File is not a valid Zip file
+/// - Zip file doesn't contain expected entries
 pub fn check_input_file(input_file_path: &Path) -> Result<ZipArchive<BufReader<File>>> {
     let fname = Path::new(&input_file_path);
 
@@ -58,13 +67,11 @@ pub fn check_input_file(input_file_path: &Path) -> Result<ZipArchive<BufReader<F
 
     // Check if input ZIP file contains all expected files
     let entries: Vec<&str> = archive.file_names().collect();
-    for name in FILES {
-        if !entries.contains(&name) {
-            return Err(anyhow!(
-                "the entry `{}` is missing from input Zip file",
-                name
-            ));
-        }
+    if !FILES.iter().all(|item| entries.contains(item)) {
+        return Err(anyhow!(
+            "input Zip file must contains 3 files: {}",
+            FILES.join(", "),
+        ));
     }
 
     Ok(archive)
@@ -130,7 +137,6 @@ mod tests {
     #[test]
     fn it_should_handle_missing_all_content_file_in_zip() {
         it_should_handle_missing_file_in_zip(
-            FILES[0],
             "it_should_handle_missing_all_content_file_in_zip.zip",
             FILES[1],
             FILES[2],
@@ -140,7 +146,6 @@ mod tests {
     #[test]
     fn it_should_handle_missing_artwork_file_in_zip() {
         it_should_handle_missing_file_in_zip(
-            FILES[1],
             "it_should_handle_missing_artwork_file_in_zip.zip",
             FILES[0],
             FILES[2],
@@ -150,19 +155,13 @@ mod tests {
     #[test]
     fn it_should_handle_missing_samples_file_in_zip() {
         it_should_handle_missing_file_in_zip(
-            FILES[2],
             "it_should_handle_missing_samples_file_in_zip.zip",
             FILES[0],
             FILES[1],
         );
     }
 
-    fn it_should_handle_missing_file_in_zip(
-        entry: &str,
-        file_path: &str,
-        file1: &str,
-        file2: &str,
-    ) {
+    fn it_should_handle_missing_file_in_zip(file_path: &str, file1: &str, file2: &str) {
         let temp_dir = env::temp_dir();
         let fname = temp_dir.join(file_path);
         let file_result = fs::OpenOptions::new()
@@ -188,7 +187,7 @@ mod tests {
         match result {
             Ok(_) => (),
             Err(e) => assert_eq!(
-                format!("the entry `{}` is missing from input Zip file", entry),
+                format!("input Zip file must contains 3 files: all_non-zipped_content.dat, artwork.dat, samples.dat"),
                 e.to_string()
             ),
         };
