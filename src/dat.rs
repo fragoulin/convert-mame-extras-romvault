@@ -1,6 +1,6 @@
 //! Generation of dat files.
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Error};
 use quick_xml::events::attributes::Attribute;
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::name::QName;
@@ -10,6 +10,7 @@ use std::borrow::Cow;
 use std::fs::File;
 use std::io::{BufReader, Cursor, ErrorKind, Write};
 use std::path::Path;
+use std::thread::{Scope, ScopedJoinHandle};
 use std::{fs, thread, vec};
 use zip::read::ZipFile;
 use zip::ZipArchive;
@@ -32,6 +33,16 @@ struct GameConfig<'a> {
     zip: &'a Path,
 }
 
+/// Dat content result from output generation.
+struct DatContent {
+    /// Content generated for all roms
+    all: String,
+    /// Content generated for artwork
+    artwork: String,
+    /// Content generated for samples
+    samples: String,
+}
+
 /// Generate output file using dats from input Zip file.
 ///
 /// # Errors
@@ -52,37 +63,63 @@ pub fn generate_output(config: &Config) -> Result<()> {
     // Add headers
     add_headers(&mut writer, config.version)?;
 
-    // Spawn thread to compute all content
-    let config_all = Box::new(GameConfig {
-        root_dir: None,
-        dirs: vec!["dats", "folders"],
-        dat: ALL_NON_ZIPPED_CONTENT,
-        zip: &config.input_file_path,
-    });
-    let all = build_handle(config_all)?;
+    let result = thread::scope(|scope| -> Result<DatContent> {
+        // Spawn thread to compute all content
+        let config_all = Box::new(GameConfig {
+            root_dir: None,
+            dirs: vec!["dats", "folders"],
+            dat: ALL_NON_ZIPPED_CONTENT,
+            zip: &config.input_file_path,
+        });
+        let all = build_handle(scope, config_all);
 
-    // Spawn thread to compute artwork
-    let config_artwork = Box::new(GameConfig {
-        root_dir: Some("artwork"),
-        dirs: Vec::new(),
-        dat: ARTWORK,
-        zip: &config.input_file_path,
-    });
-    let artwork = build_handle(config_artwork)?;
+        // Spawn thread to compute artwork
+        let config_artwork = Box::new(GameConfig {
+            root_dir: Some("artwork"),
+            dirs: Vec::new(),
+            dat: ARTWORK,
+            zip: &config.input_file_path,
+        });
+        let artwork = build_handle(scope, config_artwork);
 
-    // Spawn thread to compute samples
-    let config_samples = Box::new(GameConfig {
-        root_dir: Some("samples"),
-        dirs: Vec::new(),
-        dat: SAMPLES,
-        zip: &config.input_file_path,
+        // Spawn thread to compute samples
+        let config_samples = Box::new(GameConfig {
+            root_dir: Some("samples"),
+            dirs: Vec::new(),
+            dat: SAMPLES,
+            zip: &config.input_file_path,
+        });
+        let samples = build_handle(scope, config_samples);
+
+        let Ok(join_all_result) = all.join() else {
+            return Err(Error::msg("Failed to generate all content"));
+        };
+        let all = join_all_result.unwrap_or_default();
+
+        let Ok(join_artwork_result) = artwork.join() else {
+            return Err(Error::msg("Failed to generate artwork content"));
+        };
+        let artwork = join_artwork_result.unwrap_or_default();
+
+        let Ok(join_samples_result) = samples.join() else {
+            return Err(Error::msg("Failed to generate samples content"));
+        };
+        let samples = join_samples_result.unwrap_or_default();
+
+        Ok(DatContent {
+            all,
+            artwork,
+            samples,
+        })
     });
-    let samples = build_handle(config_samples)?;
 
     // Write threads results to main writer
-    writer.write_event(Event::Text(BytesText::from_escaped(all)))?;
-    writer.write_event(Event::Text(BytesText::from_escaped(artwork)))?;
-    writer.write_event(Event::Text(BytesText::from_escaped(samples)))?;
+    let Ok(content) = result else {
+        return Err(Error::msg("Failed to generate dat content"));
+    };
+    writer.write_event(Event::Text(BytesText::from_escaped(content.all)))?;
+    writer.write_event(Event::Text(BytesText::from_escaped(content.artwork)))?;
+    writer.write_event(Event::Text(BytesText::from_escaped(content.samples)))?;
 
     // Add end tag for datafile
     writer.write_event(Event::End(BytesEnd::new("datafile")))?;
@@ -93,26 +130,26 @@ pub fn generate_output(config: &Config) -> Result<()> {
 }
 
 /// Build thread handle in order to generate output for specified config in another thread.
-fn build_handle(config: Box<GameConfig>) -> Result<String> {
-    let result = thread::scope(|scope| -> Result<String> {
-        let handle = scope.spawn(move || -> Result<String> {
-            let mut writer = Writer::new(Cursor::new(Vec::<u8>::new()));
-            let zip_file = File::open(config.zip)?;
-            let mut zip = ZipArchive::new(&zip_file)?;
-            let entry = zip.by_name(config.dat)?;
-            let mut reader = Reader::from_reader(BufReader::new(entry));
+fn build_handle<'a>(
+    scope: &'a Scope<'a, '_>,
+    config: Box<GameConfig<'a>>,
+) -> ScopedJoinHandle<'a, Result<String>> {
+    let handle = scope.spawn(move || -> Result<String> {
+        let mut writer = Writer::new(Cursor::new(Vec::new()));
+        let zip_file = File::open(config.zip)?;
+        let mut zip = ZipArchive::new(&zip_file)?;
+        let entry = zip.by_name(config.dat)?;
+        let mut reader = Reader::from_reader(BufReader::new(entry));
 
-            if add_games(&mut writer, &config, &mut reader).is_err() {
-                return Ok(String::new());
-            }
+        if add_games(&mut writer, &config, &mut reader).is_err() {
+            return Ok(String::new());
+        }
 
-            let result = writer.into_inner().into_inner();
-            Ok(String::from_utf8(result).unwrap_or_default())
-        });
-        handle.join().unwrap()
+        let result = writer.into_inner().into_inner();
+        Ok(String::from_utf8(result).unwrap_or_default())
     });
 
-    result
+    handle
 }
 
 /// Add games for the specified configuration.
@@ -164,6 +201,7 @@ fn add_games(
                         }
                     }
 
+                    // TODO Optimize this part by reading all machine content (description + roms)
                     let mut game = BytesStart::new("game");
                     game.push_attribute(name_attribute);
                     writer.write_event(Event::Start(game))?;
