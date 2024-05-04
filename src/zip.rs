@@ -1,10 +1,9 @@
 //! Zip file handlers.
 
 use anyhow::anyhow;
-use std::fs::{self, File};
+use std::fs::{self};
 use std::io::{BufReader, ErrorKind};
 use std::path::Path;
-use zip::ZipArchive;
 
 use crate::files::FILES;
 
@@ -22,7 +21,7 @@ type Result<T> = anyhow::Result<T>;
 /// - File not accessible (permission denied)
 /// - File is not a valid Zip file
 /// - Zip file doesn't contain expected entries
-pub fn check_input_file(input_file_path: &Path) -> Result<ZipArchive<BufReader<File>>> {
+pub fn check_input_file(input_file_path: &Path) -> Result<()> {
     let fname = Path::new(&input_file_path);
 
     // Check if input file exists and can be accessed
@@ -74,7 +73,7 @@ pub fn check_input_file(input_file_path: &Path) -> Result<ZipArchive<BufReader<F
         ));
     }
 
-    Ok(archive)
+    Ok(())
 }
 
 #[cfg(test)]
@@ -82,6 +81,8 @@ mod tests {
     use std::env;
 
     use zip::write::SimpleFileOptions;
+
+    use crate::files::{ALL_NON_ZIPPED_CONTENT, ARTWORK, SAMPLES};
 
     use super::*;
 
@@ -138,8 +139,8 @@ mod tests {
     fn it_should_handle_missing_all_content_file_in_zip() {
         it_should_handle_missing_file_in_zip(
             "it_should_handle_missing_all_content_file_in_zip.zip",
-            FILES[1],
-            FILES[2],
+            ARTWORK,
+            SAMPLES,
         );
     }
 
@@ -147,8 +148,8 @@ mod tests {
     fn it_should_handle_missing_artwork_file_in_zip() {
         it_should_handle_missing_file_in_zip(
             "it_should_handle_missing_artwork_file_in_zip.zip",
-            FILES[0],
-            FILES[2],
+            ALL_NON_ZIPPED_CONTENT,
+            SAMPLES,
         );
     }
 
@@ -156,8 +157,8 @@ mod tests {
     fn it_should_handle_missing_samples_file_in_zip() {
         it_should_handle_missing_file_in_zip(
             "it_should_handle_missing_samples_file_in_zip.zip",
-            FILES[0],
-            FILES[1],
+            ALL_NON_ZIPPED_CONTENT,
+            ARTWORK,
         );
     }
 

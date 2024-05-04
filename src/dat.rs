@@ -7,9 +7,12 @@ use quick_xml::name::QName;
 use quick_xml::reader::Reader;
 use quick_xml::Writer;
 use std::borrow::Cow;
-use std::io::{Cursor, ErrorKind, Write};
-use std::path::{Path, PathBuf};
+use std::fs::File;
+use std::io::{BufReader, Cursor, ErrorKind, Write};
+use std::path::Path;
 use std::{fs, thread, vec};
+use zip::read::ZipFile;
+use zip::ZipArchive;
 
 use crate::files::{ALL_NON_ZIPPED_CONTENT, ARTWORK, SAMPLES};
 use crate::Config;
@@ -19,12 +22,14 @@ type Result<T> = anyhow::Result<T>;
 
 /// Game configuration for a specific input dat.
 struct GameConfig<'a> {
-    /// Path to input dat file.
-    path: PathBuf,
     /// Optional root dir (for artwork and samples)
     root_dir: Option<&'a str>,
     /// Optional directories (for dats and folders)
     dirs: Vec<&'a str>,
+    /// Dat file name
+    dat: &'a str,
+    /// Input Zip file path
+    zip: &'a Path,
 }
 
 /// Generate output file using dats from input Zip file.
@@ -33,13 +38,7 @@ struct GameConfig<'a> {
 ///
 /// Will return `Err` if an error occured during XML read or XML write.
 pub fn generate_output(config: &Config) -> Result<()> {
-    let all_content_path = config.temp_dir_path.path().join(ALL_NON_ZIPPED_CONTENT);
-    let artwork_path = config.temp_dir_path.path().join(ARTWORK);
-    let samples_path = config.temp_dir_path.path().join(SAMPLES);
     let mut writer = Writer::new(Cursor::new(Vec::new()));
-    let mut writer_all = Writer::new(Cursor::new(Vec::new()));
-    let mut writer_artwork = Writer::new(Cursor::new(Vec::new()));
-    let mut writer_samples = Writer::new(Cursor::new(Vec::new()));
 
     // Declaration
     add_declaration(&mut writer)?;
@@ -54,55 +53,31 @@ pub fn generate_output(config: &Config) -> Result<()> {
     add_headers(&mut writer, config.version)?;
 
     // Spawn thread to compute all content
-    let handle_all = thread::spawn(move || {
-        let config_all = GameConfig {
-            path: all_content_path,
-            root_dir: None,
-            dirs: vec!["dats", "folders"],
-        };
-        if add_games(&mut writer_all, &config_all).is_err() {
-            return String::new();
-        }
-
-        let result = writer_all.into_inner().into_inner();
-        String::from_utf8(result).unwrap_or_default()
+    let config_all = Box::new(GameConfig {
+        root_dir: None,
+        dirs: vec!["dats", "folders"],
+        dat: ALL_NON_ZIPPED_CONTENT,
+        zip: &config.input_file_path,
     });
+    let all = build_handle(config_all)?;
 
     // Spawn thread to compute artwork
-    let handle_artwork = thread::spawn(move || {
-        let config_artwork = GameConfig {
-            path: artwork_path,
-            root_dir: Some("artwork"),
-            dirs: Vec::new(),
-        };
-        if add_games(&mut writer_artwork, &config_artwork).is_err() {
-            return String::new();
-        }
-
-        let result = writer_artwork.into_inner().into_inner();
-        String::from_utf8(result).unwrap_or_default()
+    let config_artwork = Box::new(GameConfig {
+        root_dir: Some("artwork"),
+        dirs: Vec::new(),
+        dat: ARTWORK,
+        zip: &config.input_file_path,
     });
+    let artwork = build_handle(config_artwork)?;
 
     // Spawn thread to compute samples
-    let handle_samples = thread::spawn(move || {
-        let config_samples = GameConfig {
-            path: samples_path,
-            root_dir: Some("samples"),
-            dirs: Vec::new(),
-        };
-        if add_games(&mut writer_samples, &config_samples).is_err() {
-            return String::new();
-        }
-
-        let result = writer_samples.into_inner().into_inner();
-        println!("end samples");
-        String::from_utf8(result).unwrap_or_default()
+    let config_samples = Box::new(GameConfig {
+        root_dir: Some("samples"),
+        dirs: Vec::new(),
+        dat: SAMPLES,
+        zip: &config.input_file_path,
     });
-
-    // Wait for threads to finish
-    let all = handle_all.join().unwrap_or_default();
-    let artwork = handle_artwork.join().unwrap_or_default();
-    let samples = handle_samples.join().unwrap_or_default();
+    let samples = build_handle(config_samples)?;
 
     // Write threads results to main writer
     writer.write_event(Event::Text(BytesText::from_escaped(all)))?;
@@ -117,8 +92,35 @@ pub fn generate_output(config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// Build thread handle in order to generate output for specified config in another thread.
+fn build_handle(config: Box<GameConfig>) -> Result<String> {
+    let result = thread::scope(|scope| -> Result<String> {
+        let handle = scope.spawn(move || -> Result<String> {
+            let mut writer = Writer::new(Cursor::new(Vec::<u8>::new()));
+            let zip_file = File::open(config.zip)?;
+            let mut zip = ZipArchive::new(&zip_file)?;
+            let entry = zip.by_name(config.dat)?;
+            let mut reader = Reader::from_reader(BufReader::new(entry));
+
+            if add_games(&mut writer, &config, &mut reader).is_err() {
+                return Ok(String::new());
+            }
+
+            let result = writer.into_inner().into_inner();
+            Ok(String::from_utf8(result).unwrap_or_default())
+        });
+        handle.join().unwrap()
+    });
+
+    result
+}
+
 /// Add games for the specified configuration.
-fn add_games(writer: &mut Writer<Cursor<Vec<u8>>>, config: &GameConfig) -> Result<()> {
+fn add_games(
+    writer: &mut Writer<Cursor<Vec<u8>>>,
+    config: &GameConfig,
+    reader: &mut Reader<BufReader<ZipFile>>,
+) -> Result<()> {
     /// Helper state to parse input dat
     enum State {
         /// Datafile section state.
@@ -128,7 +130,6 @@ fn add_games(writer: &mut Writer<Cursor<Vec<u8>>>, config: &GameConfig) -> Resul
         /// Description section state.
         Description,
     }
-    let mut reader = Reader::from_file(&config.path)?;
     let mut buf = Vec::new();
     let mut state = State::Datafile;
     let dirs = &config.dirs;
