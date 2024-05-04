@@ -202,7 +202,6 @@ fn add_games(
                         }
                     }
 
-                    // TODO Optimize this part by reading all machine content (description + roms)
                     let mut game = BytesStart::new("game");
                     game.push_attribute(name_attribute);
                     writer.write_event(Event::Start(game))?;
