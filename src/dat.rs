@@ -142,9 +142,7 @@ fn build_handle<'a>(
         let entry = zip.by_name(config.dat)?;
         let mut reader = Reader::from_reader(BufReader::new(entry));
 
-        if add_games(&mut writer, &config, &mut reader).is_err() {
-            return Ok(String::new());
-        }
+        add_games(&mut writer, &config, &mut reader)?;
 
         let result = writer.into_inner().into_inner();
         Ok(String::from_utf8(result).unwrap_or_default())
