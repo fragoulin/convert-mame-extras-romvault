@@ -18,8 +18,6 @@ type Result<T> = anyhow::Result<T>;
 /// Main configuration to hold various parameters:
 /// - Input from command line arguments
 /// - Version computed from input file name
-/// - Temporary directory path
-/// - XML readers for the three dat files
 pub struct Config {
     /// Zip file used for input.
     input_file_path: PathBuf,
@@ -56,7 +54,7 @@ impl Config {
 /// Returns 0 if no error occurred.
 /// Returns 1 in case of error.
 #[must_use]
-pub fn real_main(args: &[String]) -> i32 {
+pub fn real_main(args: &[String]) -> i8 {
     let now = Instant::now();
 
     let input = match parse_args(args) {
