@@ -114,8 +114,9 @@ pub fn generate_output(config: &Config) -> Result<()> {
     });
 
     // Write threads results to main writer
-    let Ok(content) = result else {
-        return Err(Error::msg("Failed to generate dat content"));
+    let content = match result {
+        Ok(content) => content,
+        Err(err) => return Err(err),
     };
     writer.write_event(Event::Text(BytesText::from_escaped(content.all)))?;
     writer.write_event(Event::Text(BytesText::from_escaped(content.artwork)))?;
