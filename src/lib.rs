@@ -16,7 +16,8 @@ use std::{path::PathBuf, time::Instant};
 type Result<T> = anyhow::Result<T>;
 
 /// Main configuration to hold various parameters:
-/// - Input from command line arguments
+/// - Input file from command line arguments
+/// - Output file from command line arguments or generated from input file name
 /// - Version computed from input file name
 pub struct Config {
     /// Zip file used for input.
@@ -110,6 +111,7 @@ fn parse_args(args: &[String]) -> Result<Args> {
     } else {
         None
     };
+
     let result = Args {
         input_file,
         output_file,
