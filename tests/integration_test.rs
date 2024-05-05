@@ -1,12 +1,23 @@
 mod common;
 
-use std::{env, fs};
-
-use convert_mame_extras_romvault::real_main;
+use assert_cmd::prelude::*; // Add methods on commands
+use std::process::Command;
+use std::{env, fs}; // Run programs
 
 use crate::common::compare_digests;
 
 type Result<T> = anyhow::Result<T>;
+
+#[test]
+fn it_fails_with_0_argument() -> Result<()> {
+    // Create arguments
+    let mut cmd = Command::cargo_bin("convert-mame-extras-romvault")?;
+    let status = cmd.status().expect("Failure");
+
+    assert_eq!(2, status.code().unwrap());
+
+    Ok(())
+}
 
 #[test]
 fn it_runs_with_1_argument() -> Result<()> {
@@ -14,11 +25,10 @@ fn it_runs_with_1_argument() -> Result<()> {
     let input_file = String::from("tests/assets/MAME 0.264 EXTRAs.zip");
     let output_file = String::from("MAME 0.264 EXTRAs.dat");
     let expected_file = String::from("tests/assets/expected/MAME 0.264 EXTRAs.dat");
-    let args = vec![input_file.clone()];
+    let mut cmd = Command::cargo_bin("convert-mame-extras-romvault")?;
+    let status = cmd.arg(input_file).status().expect("Failure");
 
-    // Run
-    let code = real_main(&args);
-    assert_eq!(0, code);
+    assert!(status.success());
 
     // Compare files digests
     assert!(compare_digests(&output_file, &expected_file).unwrap());
@@ -40,11 +50,15 @@ fn it_runs_with_2_arguments_264() -> Result<()> {
     let output_file_name = "extras264.dat";
     let output_file_path = temp_dir_path.join(output_file_name);
     let output_file = output_file_path.to_string_lossy().to_string();
-    let args = vec![input_file.clone(), output_file.clone()];
 
-    // Run
-    let code = real_main(&args);
-    assert_eq!(0, code);
+    let mut cmd = Command::cargo_bin("convert-mame-extras-romvault")?;
+    let status = cmd
+        .arg(input_file)
+        .arg(output_file.clone())
+        .status()
+        .expect("Failure");
+
+    assert!(status.success());
 
     // Compare files digests
     assert!(compare_digests(&output_file, &expected_file).unwrap());
@@ -64,11 +78,15 @@ fn it_runs_with_2_arguments_262() -> Result<()> {
     let output_file_name = "extras262.dat";
     let output_file_path = temp_dir_path.join(output_file_name);
     let output_file = output_file_path.to_string_lossy().to_string();
-    let args = vec![input_file.clone(), output_file.clone()];
 
-    // Run
-    let code = real_main(&args);
-    assert_eq!(0, code);
+    let mut cmd = Command::cargo_bin("convert-mame-extras-romvault")?;
+    let status = cmd
+        .arg(input_file)
+        .arg(output_file.clone())
+        .status()
+        .expect("Failure");
+
+    assert!(status.success());
 
     // Compare files digests
     assert!(compare_digests(&output_file, &expected_file).unwrap());
