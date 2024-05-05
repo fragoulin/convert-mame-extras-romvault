@@ -83,9 +83,8 @@ mod tests {
         let file = Path::new("foo.txt");
         let result = check_input_file(file);
         assert!(result.is_err());
-        match result {
-            Ok(_) => (),
-            Err(e) => assert_eq!("the file `foo.txt` does not exist", e.to_string()),
+        if let Err(err) = result {
+            assert_eq!("the file `foo.txt` does not exist", err.to_string());
         };
     }
 
@@ -94,13 +93,12 @@ mod tests {
         let file = Path::new("/root/foo.txt");
         let result = check_input_file(file);
         assert!(result.is_err());
-        match result {
-            Ok(_) => (),
-            Err(e) => assert_eq!(
+        if let Err(err) = result {
+            assert_eq!(
                 "you have no permission to access file `/root/foo.txt`",
-                e.to_string()
-            ),
-        };
+                err.to_string(),
+            );
+        }
     }
 
     #[test]
@@ -116,12 +114,11 @@ mod tests {
         assert!(file_result.is_ok());
         let result = check_input_file(&fname);
         assert!(result.is_err());
-        match result {
-            Ok(_) => (),
-            Err(e) => assert_eq!(
+        if let Err(err) = result {
+            assert_eq!(
                 format!("the file `{}` is not a valid Zip file", fname.display()),
-                e.to_string()
-            ),
+                err.to_string()
+            );
         };
         let remove_result = fs::remove_file(fname);
         assert!(remove_result.is_ok());
@@ -177,12 +174,11 @@ mod tests {
 
         let result = check_input_file(&fname);
         assert!(result.is_err());
-        match result {
-            Ok(_) => (),
-            Err(e) => assert_eq!(
+        if let Err(err) = result {
+            assert_eq!(
                 format!("input Zip file must contains 3 files: all_non-zipped_content.dat, artwork.dat, samples.dat"),
-                e.to_string()
-            ),
+                err.to_string()
+            );
         };
 
         let remove_result = fs::remove_file(fname);
