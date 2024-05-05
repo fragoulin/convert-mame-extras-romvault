@@ -24,32 +24,43 @@ pub struct Config {
     /// Generated dat will be written into this output file.
     output_file_path: PathBuf,
     /// Version extracted from input Zip file name. Will be used for dat generation.
-    version: f32,
-}
-
-/// Input and output files from command line arguments.
-struct Input {
-    /// Zip file used for input.
-    input_file_path: PathBuf,
-    /// Generated dat will be written into this output file.
-    output_file_path: PathBuf,
+    version: Option<f32>,
 }
 
 impl Config {
-    /// Build configuration according to specified input
-    fn build(input: Input) -> Self {
-        let file_name = input.input_file_path.display().to_string();
-        let version = extract_version(file_name.as_str()).unwrap_or(0.01);
+    /// Build configuration according to specified command line arguments
+    fn build(args: &Args) -> Self {
+        let version = extract_version(args.input_file);
+
+        let input_file_path = PathBuf::from(args.input_file);
+        let mut output_file_path: PathBuf;
+
+        if args.output_file.is_none() {
+            // Compute output file name from input file name
+            let input_file_name = input_file_path.file_name().unwrap();
+            output_file_path = PathBuf::from(input_file_name);
+            output_file_path.set_extension("dat");
+        } else {
+            output_file_path = PathBuf::from(args.output_file.unwrap());
+        }
 
         Self {
-            input_file_path: input.input_file_path,
-            output_file_path: input.output_file_path,
+            input_file_path,
+            output_file_path,
             version,
         }
     }
 }
 
-/// Parse arguments, build XML readers, and tries to generate output dat file.
+/// Arguments parsed from command line.
+struct Args<'a> {
+    /// Mandatory input file retrieved from command line.
+    input_file: &'a str,
+    /// Optional output file retrieved from command line.
+    output_file: Option<&'a str>,
+}
+
+/// Parse arguments, build application configuration, and tries to generate output dat file.
 ///
 /// Returns 0 if no error occurred.
 /// Returns 1 in case of error.
@@ -57,8 +68,9 @@ impl Config {
 pub fn real_main(args: &[String]) -> i8 {
     let now = Instant::now();
 
-    let input = match parse_args(args) {
-        Ok(input) => input,
+    // Parse arguments
+    let args = match parse_args(args) {
+        Ok(args) => args,
         Err(err) => {
             eprintln!("Problem parsing arguments: {err}",);
             print_usage();
@@ -66,9 +78,16 @@ pub fn real_main(args: &[String]) -> i8 {
         }
     };
 
-    let config = Config::build(input);
+    // Build configuration
+    let config = Config::build(&args);
+    println!(
+        "Generating {} for version {}",
+        config.output_file_path.display(),
+        config.version.unwrap_or_default(),
+    );
 
-    if let Err(err) = run(&config) {
+    // Generate output dat file
+    if let Err(err) = generate_output(&config) {
         eprintln!("Error: {err}");
         return 1;
     }
@@ -79,27 +98,21 @@ pub fn real_main(args: &[String]) -> i8 {
     0
 }
 
-/// Parse command line arguments and build Input struct.
-fn parse_args(args: &[String]) -> Result<Input> {
+/// Parse command line arguments and return a struct containing input and output file paths.
+fn parse_args(args: &[String]) -> Result<Args> {
     if args.is_empty() {
         return Err(anyhow!("missing input file"));
     }
 
-    let input_file_path = PathBuf::from(&args[0]);
-    let mut output_file_path: PathBuf;
-
-    if args.len() == 1 {
-        // No output file specified
-        let input_file_name = input_file_path.file_name().unwrap();
-        output_file_path = PathBuf::from(input_file_name);
-        output_file_path.set_extension("dat");
+    let input_file = args[0].as_str();
+    let output_file = if args.len() > 1 {
+        Some(args[1].as_str())
     } else {
-        output_file_path = PathBuf::from(&args[1]);
-    }
-
-    let result = Input {
-        input_file_path,
-        output_file_path,
+        None
+    };
+    let result = Args {
+        input_file,
+        output_file,
     };
 
     Ok(result)
@@ -113,23 +126,6 @@ fn print_usage() {
     eprintln!("{:indent$}<outputfile> is optional. If not specified, the name of the input file will be used (e.g. `MAME 0.264 EXTRAs.dat`)", "");
 }
 
-/// # Errors
-///
-/// Will return `Err` if input file in config does not exist,
-/// cannot be read or if it is an invalid zip file.
-fn run(config: &Config) -> Result<()> {
-    // Test ok -> remove temp dir, remove extract, put readers for all 3 dats in config
-    println!(
-        "Generating {} for version {}",
-        config.output_file_path.display(),
-        config.version
-    );
-
-    generate_output(config)?;
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -140,9 +136,10 @@ mod tests {
         let output_file_path = String::from("extras.dat");
         let args = vec![input_file_path.clone(), output_file_path.clone()];
 
-        let input_result = parse_args(&args);
-        assert!(input_result.is_ok());
-        let config = Config::build(input_result.unwrap());
+        let args_result = parse_args(&args);
+        assert!(args_result.is_ok());
+        let args = args_result.unwrap();
+        let config = Config::build(&args);
 
         assert_eq!(
             input_file_path,
@@ -152,7 +149,7 @@ mod tests {
             output_file_path,
             config.output_file_path.display().to_string()
         );
-        assert_eq!(0.264, config.version);
+        assert_eq!(0.264, config.version.unwrap());
     }
 
     #[test]
@@ -161,9 +158,10 @@ mod tests {
         let output_file_path = String::from("MAME 0.264 EXTRAs.dat");
         let args = vec![input_file_path.clone()];
 
-        let input_result = parse_args(&args);
-        assert!(input_result.is_ok());
-        let config = Config::build(input_result.unwrap());
+        let args_result = parse_args(&args);
+        assert!(args_result.is_ok());
+        let args = args_result.unwrap();
+        let config = Config::build(&args);
 
         assert_eq!(
             input_file_path,
@@ -173,7 +171,7 @@ mod tests {
             output_file_path,
             config.output_file_path.display().to_string()
         );
-        assert_eq!(0.264, config.version);
+        assert_eq!(0.264, config.version.unwrap());
     }
 
     #[test]
@@ -182,9 +180,10 @@ mod tests {
         let output_file_path = String::from("MAME EXTRAs.dat");
         let args = vec![input_file_path.clone()];
 
-        let input_result = parse_args(&args);
-        assert!(input_result.is_ok());
-        let config = Config::build(input_result.unwrap());
+        let args_result = parse_args(&args);
+        assert!(args_result.is_ok());
+        let args = args_result.unwrap();
+        let config = Config::build(&args);
 
         assert_eq!(
             input_file_path,
@@ -194,7 +193,7 @@ mod tests {
             output_file_path,
             config.output_file_path.display().to_string()
         );
-        assert_eq!(0.01, config.version);
+        assert_eq!(true, config.version.is_none());
     }
 
     #[test]

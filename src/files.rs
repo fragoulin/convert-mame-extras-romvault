@@ -35,7 +35,7 @@ pub fn extract_version(file_name: &str) -> Option<f32> {
         .case_insensitive(true)
         .build()
     else {
-        return None;
+        return None; // Should never happen
     };
     let caps = re.captures(file_name)?;
     let Ok(version) = caps["version"].parse::<f32>() else {

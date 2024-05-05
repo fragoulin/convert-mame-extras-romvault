@@ -22,11 +22,14 @@ type Result<T> = anyhow::Result<T>;
 /// - File is not a valid Zip file
 /// - Zip file doesn't contain expected entries
 pub fn check_input_file(input_file_path: &Path) -> Result<()> {
-    let fname = Path::new(&input_file_path);
-
     // Check if input file exists and can be accessed
-    if let Err(err) = fname.metadata() {
-        match err.kind() {
+    let file = match fs::OpenOptions::new()
+        .read(true)
+        .write(false)
+        .open(input_file_path)
+    {
+        Ok(file) => file,
+        Err(err) => match err.kind() {
             ErrorKind::NotFound => {
                 return Err(anyhow!(
                     "the file `{}` does not exist",
@@ -35,25 +38,14 @@ pub fn check_input_file(input_file_path: &Path) -> Result<()> {
             }
             ErrorKind::PermissionDenied => {
                 return Err(anyhow!(
-                    "you have no permission to access file `{0}`",
+                    "you have no permission to access file `{}`",
                     input_file_path.display().to_string()
                 ))
             }
-            _ => {
-                return Err(anyhow!(
-                    "the file `{}` cannot be loaded",
-                    input_file_path.display().to_string()
-                ))
-            }
-        }
-    }
-
-    let Ok(file) = fs::File::open(fname) else {
-        return Err(anyhow!(
-            "the file `{}` does not exist",
-            input_file_path.display().to_string()
-        ));
+            _ => return Err(err.into()),
+        },
     };
+
     let reader = BufReader::new(file);
 
     // Check if input file is a valid zip
@@ -66,7 +58,7 @@ pub fn check_input_file(input_file_path: &Path) -> Result<()> {
 
     // Check if input ZIP file contains all expected files
     let entries: Vec<&str> = archive.file_names().collect();
-    if !FILES.iter().all(|item| entries.contains(item)) {
+    if !FILES.iter().all(|dat_file| entries.contains(dat_file)) {
         return Err(anyhow!(
             "input Zip file must contains 3 files: {}",
             FILES.join(", "),

@@ -272,17 +272,22 @@ fn add_doctype(writer: &mut Writer<Cursor<Vec<u8>>>) -> Result<()> {
 }
 
 /// Add all expected headers to writer
-fn add_headers(writer: &mut Writer<Cursor<Vec<u8>>>, version: f32) -> Result<()> {
+fn add_headers(writer: &mut Writer<Cursor<Vec<u8>>>, version: Option<f32>) -> Result<()> {
     let name = "header";
     writer.write_event(Event::Start(BytesStart::new(name)))?;
     add_header(writer, "name", "Extras")?;
-    add_header(
-        writer,
-        "description",
-        &format!("MAME {version} Extras (all content)"),
-    )?;
+
+    let description = if version.is_some() {
+        format!("MAME {} Extras (all content)", version.unwrap())
+    } else {
+        String::from("MAME Extras (all content)")
+    };
+
+    add_header(writer, "description", description.as_str())?;
     add_header(writer, "category", "Standard DatFile")?;
-    add_header(writer, "version", &version.to_string())?;
+    if version.is_some() {
+        add_header(writer, "version", &version.unwrap().to_string())?;
+    }
     add_header(writer, "author", "Pleasuredome")?;
     add_header(
         writer,
