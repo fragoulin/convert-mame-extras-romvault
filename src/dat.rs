@@ -71,7 +71,7 @@ pub fn generate_output(config: &Config) -> Result<()> {
             dat: ALL_NON_ZIPPED_CONTENT,
             zip: &config.input_file_path,
         });
-        let all = build_handle(scope, config_all);
+        let all = build_handle(scope, config_all)?;
 
         // Spawn thread to compute artwork
         let config_artwork = Box::new(GameConfig {
@@ -80,7 +80,7 @@ pub fn generate_output(config: &Config) -> Result<()> {
             dat: ARTWORK,
             zip: &config.input_file_path,
         });
-        let artwork = build_handle(scope, config_artwork);
+        let artwork = build_handle(scope, config_artwork)?;
 
         // Spawn thread to compute samples
         let config_samples = Box::new(GameConfig {
@@ -89,7 +89,7 @@ pub fn generate_output(config: &Config) -> Result<()> {
             dat: SAMPLES,
             zip: &config.input_file_path,
         });
-        let samples = build_handle(scope, config_samples);
+        let samples = build_handle(scope, config_samples)?;
 
         let Ok(join_all_result) = all.join() else {
             return Err(Error::msg("Failed to generate all content"));
@@ -131,11 +131,13 @@ pub fn generate_output(config: &Config) -> Result<()> {
 }
 
 /// Build thread handle in order to generate output for specified config in another thread.
+/// TODO use thread builder
 fn build_handle<'a>(
     scope: &'a Scope<'a, '_>,
     config: Box<GameConfig<'a>>,
-) -> ScopedJoinHandle<'a, Result<String>> {
-    let handle = scope.spawn(move || -> Result<String> {
+) -> Result<ScopedJoinHandle<'a, Result<String>>> {
+    let thread_builder = thread::Builder::new().name(String::from(config.dat));
+    let handle = thread_builder.spawn_scoped(scope, move || -> Result<String> {
         let mut writer = Writer::new(Cursor::new(Vec::new()));
         let zip_file = File::open(config.zip)?;
         let mut zip = ZipArchive::new(&zip_file)?;
@@ -148,7 +150,11 @@ fn build_handle<'a>(
         Ok(String::from_utf8(result).unwrap_or_default())
     });
 
-    handle
+    if let Err(err) = handle {
+        return Err(err.into());
+    };
+
+    Ok(handle.unwrap())
 }
 
 /// Add games for the specified configuration.
