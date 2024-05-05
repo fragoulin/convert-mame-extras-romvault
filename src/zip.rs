@@ -1,14 +1,10 @@
 //! Zip file handlers.
 
-use anyhow::anyhow;
 use std::fs::{self};
 use std::io::{BufReader, ErrorKind};
 use std::path::Path;
 
 use crate::files::FILES;
-
-/// Custom result with any context error.
-type Result<T> = anyhow::Result<T>;
 
 /// Check if input file is accessible, is a valid Zip, and contains the expected entries.
 /// Expected entries are :
@@ -21,7 +17,8 @@ type Result<T> = anyhow::Result<T>;
 /// - File not accessible (permission denied)
 /// - File is not a valid Zip file
 /// - Zip file doesn't contain expected entries
-pub fn check_input_file(input_file_path: &Path) -> Result<()> {
+#[must_use]
+pub fn check_input_file(input_file_path: &Path) -> i32 {
     // Check if input file exists and can be accessed
     let file = match fs::OpenOptions::new()
         .read(true)
@@ -31,18 +28,20 @@ pub fn check_input_file(input_file_path: &Path) -> Result<()> {
         Ok(file) => file,
         Err(err) => match err.kind() {
             ErrorKind::NotFound => {
-                return Err(anyhow!(
-                    "the file `{}` does not exist",
+                eprintln!(
+                    "Error: the file `{}` does not exist",
                     input_file_path.display()
-                ));
+                );
+                return exitcode::NOINPUT;
             }
             ErrorKind::PermissionDenied => {
-                return Err(anyhow!(
-                    "you have no permission to access file `{}`",
-                    input_file_path.display().to_string()
-                ))
+                eprintln!(
+                    "Error: you have no permission to access file `{}`",
+                    input_file_path.display()
+                );
+                return exitcode::NOINPUT;
             }
-            _ => return Err(err.into()),
+            _ => return exitcode::IOERR,
         },
     };
 
@@ -50,22 +49,24 @@ pub fn check_input_file(input_file_path: &Path) -> Result<()> {
 
     // Check if input file is a valid zip
     let Ok(archive) = zip::ZipArchive::new(reader) else {
-        return Err(anyhow!(
-            "the file `{}` is not a valid Zip file",
-            input_file_path.display().to_string()
-        ));
+        eprintln!(
+            "Error: the file `{}` is not a valid Zip file",
+            input_file_path.display()
+        );
+        return exitcode::DATAERR;
     };
 
     // Check if input ZIP file contains all expected files
     let entries: Vec<&str> = archive.file_names().collect();
     if !FILES.iter().all(|dat_file| entries.contains(dat_file)) {
-        return Err(anyhow!(
-            "input Zip file must contains 3 files: {}",
+        eprintln!(
+            "Error: input Zip file must contains 3 files: {}",
             FILES.join(", "),
-        ));
+        );
+        return exitcode::DATAERR;
     }
 
-    Ok(())
+    0
 }
 
 #[cfg(test)]
@@ -82,23 +83,14 @@ mod tests {
     fn it_should_handle_unexisting_file() {
         let file = Path::new("foo.txt");
         let result = check_input_file(file);
-        assert!(result.is_err());
-        if let Err(err) = result {
-            assert_eq!("the file `foo.txt` does not exist", err.to_string());
-        };
+        assert_eq!(result, exitcode::NOINPUT);
     }
 
     #[test]
     fn it_should_handle_permission_denied_error() {
         let file = Path::new("/root/foo.txt");
         let result = check_input_file(file);
-        assert!(result.is_err());
-        if let Err(err) = result {
-            assert_eq!(
-                "you have no permission to access file `/root/foo.txt`",
-                err.to_string(),
-            );
-        }
+        assert_eq!(result, exitcode::NOINPUT);
     }
 
     #[test]
@@ -113,13 +105,7 @@ mod tests {
             .open(&fname);
         assert!(file_result.is_ok());
         let result = check_input_file(&fname);
-        assert!(result.is_err());
-        if let Err(err) = result {
-            assert_eq!(
-                format!("the file `{}` is not a valid Zip file", fname.display()),
-                err.to_string()
-            );
-        };
+        assert_eq!(result, exitcode::DATAERR);
         let remove_result = fs::remove_file(fname);
         assert!(remove_result.is_ok());
     }
@@ -173,13 +159,7 @@ mod tests {
         assert!(zip_finish_result.is_ok());
 
         let result = check_input_file(&fname);
-        assert!(result.is_err());
-        if let Err(err) = result {
-            assert_eq!(
-                format!("input Zip file must contains 3 files: all_non-zipped_content.dat, artwork.dat, samples.dat"),
-                err.to_string()
-            );
-        };
+        assert_eq!(result, exitcode::DATAERR);
 
         let remove_result = fs::remove_file(fname);
         assert!(remove_result.is_ok());

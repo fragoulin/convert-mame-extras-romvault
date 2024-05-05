@@ -24,5 +24,5 @@ use convert_mame_extras_romvault::real_main;
 ///
 fn main() {
     let code = real_main();
-    process::exit(code.into());
+    process::exit(code);
 }

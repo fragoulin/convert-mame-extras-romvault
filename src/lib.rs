@@ -64,16 +64,16 @@ struct Args {
 /// Returns 0 if no error occurred.
 /// Returns 1 in case of error.
 #[must_use]
-pub fn real_main() -> i8 {
+pub fn real_main() -> i32 {
     let now = Instant::now();
 
     // Parse arguments
     let args = Args::parse();
 
-    if let Err(err) = check_input_file(args.input_file.as_path()) {
-        eprintln!("Error: {err}");
-        return 1;
-    };
+    let code = check_input_file(args.input_file.as_path());
+    if code > 0 {
+        return code;
+    }
 
     // Build configuration
     let config = Config::build(&args);
@@ -92,5 +92,5 @@ pub fn real_main() -> i8 {
     let elapsed = now.elapsed();
     println!("Elapsed: {elapsed:.2?}");
 
-    0
+    code
 }

@@ -17,6 +17,7 @@ publish = false
 [dependencies]
 anyhow = "1.0.82"
 clap = { version = "4.5.4", features = ["derive"] }
+exitcode = "1.1.2"
 quick-xml = "0.31.0"
 regex = "1.10.4"
 zip = "1.1.1"

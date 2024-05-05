@@ -26,7 +26,7 @@ fn it_fails_with_invalid_input() -> Result<()> {
     let mut cmd = Command::cargo_bin("convert-mame-extras-romvault")?;
     let status = cmd.arg(input_file).status().expect("Failure");
 
-    assert_eq!(1, status.code().unwrap());
+    assert_eq!(exitcode::DATAERR, status.code().unwrap());
     let output = cmd.output().unwrap().stderr;
     assert_eq!(
         String::from_utf8(output).unwrap(),
