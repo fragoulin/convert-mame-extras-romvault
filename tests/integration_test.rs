@@ -20,6 +20,23 @@ fn it_fails_with_0_argument() -> Result<()> {
 }
 
 #[test]
+fn it_fails_with_invalid_input() -> Result<()> {
+    // Create arguments
+    let input_file = String::from("tests/assets/expected/MAME 0.264 EXTRAs.dat");
+    let mut cmd = Command::cargo_bin("convert-mame-extras-romvault")?;
+    let status = cmd.arg(input_file).status().expect("Failure");
+
+    assert_eq!(1, status.code().unwrap());
+    let output = cmd.output().unwrap().stderr;
+    assert_eq!(
+        String::from_utf8(output).unwrap(),
+        "Error: the file `tests/assets/expected/MAME 0.264 EXTRAs.dat` is not a valid Zip file\n"
+    );
+
+    Ok(())
+}
+
+#[test]
 fn it_runs_with_1_argument() -> Result<()> {
     // Create arguments
     let input_file = String::from("tests/assets/MAME 0.264 EXTRAs.zip");

@@ -7,7 +7,7 @@ pub mod dat;
 pub mod files;
 pub mod zip;
 
-use crate::dat::generate_output;
+use crate::{dat::generate_output, zip::check_input_file};
 use clap::Parser;
 use files::extract_version;
 use std::{path::PathBuf, time::Instant};
@@ -69,6 +69,11 @@ pub fn real_main() -> i8 {
 
     // Parse arguments
     let args = Args::parse();
+
+    if let Err(err) = check_input_file(args.input_file.as_path()) {
+        eprintln!("Error: {err}");
+        return 1;
+    };
 
     // Build configuration
     let config = Config::build(&args);
