@@ -55,7 +55,7 @@ impl Config {
 struct Args {
     /// Input Zip file containing MAME Extras dats (all_non-zipped_content.dat, artwork.dat and samples.dat).
     input_file: PathBuf,
-    /// Optional output file compatible with RomVault. If not specified, the input Zip file name is used, with a .dat extension.
+    /// Optional output file compatible with Romvault. If not specified, the input Zip file name is used, with a .dat extension.
     output_file: Option<PathBuf>,
 }
 
