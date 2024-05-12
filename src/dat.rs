@@ -131,7 +131,6 @@ pub fn generate_output(config: &Config) -> Result<()> {
 }
 
 /// Build thread handle in order to generate output for specified config in another thread.
-/// TODO use thread builder
 fn build_handle<'a>(
     scope: &'a Scope<'a, '_>,
     config: Box<GameConfig<'a>>,
