@@ -114,10 +114,7 @@ pub fn generate_output(config: &Config) -> Result<()> {
     });
 
     // Write threads results to main writer
-    let content = match result {
-        Ok(content) => content,
-        Err(err) => return Err(err),
-    };
+    let content = result?;
     writer.write_event(Event::Text(BytesText::from_escaped(content.all)))?;
     writer.write_event(Event::Text(BytesText::from_escaped(content.artwork)))?;
     writer.write_event(Event::Text(BytesText::from_escaped(content.samples)))?;
@@ -151,7 +148,7 @@ fn build_handle<'a>(
 
     if let Err(err) = handle {
         return Err(err.into());
-    };
+    }
 
     Ok(handle.unwrap())
 }
@@ -160,7 +157,7 @@ fn build_handle<'a>(
 fn add_games(
     writer: &mut Writer<Cursor<Vec<u8>>>,
     config: &GameConfig,
-    reader: &mut Reader<BufReader<ZipFile>>,
+    reader: &mut Reader<BufReader<ZipFile<'_, &File>>>,
 ) -> Result<()> {
     /// Helper state to parse input dat
     enum State {

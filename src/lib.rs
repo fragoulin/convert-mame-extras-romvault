@@ -73,7 +73,7 @@ pub fn real_main() -> i8 {
     if let Err(err) = check_input_file(args.input_file.as_path()) {
         eprintln!("Error: {err}");
         return 1;
-    };
+    }
 
     // Build configuration
     let config = Config::build(&args);
