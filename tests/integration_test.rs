@@ -1,3 +1,5 @@
+//! Integration tests.
+
 mod common;
 
 use assert_cmd::prelude::*; // Add methods on commands
@@ -57,14 +59,10 @@ fn it_runs_with_1_argument() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn it_runs_with_2_arguments_264() -> Result<()> {
+fn it_runs_with_2_arguments(input_file: String, expected_file: String, output_file_name: &str) -> Result<()> {
     let temp_dir_path = env::temp_dir();
 
     // Create arguments
-    let input_file = String::from("tests/assets/MAME 0.264 EXTRAs.zip");
-    let expected_file = String::from("tests/assets/expected/MAME 0.264 EXTRAs.dat");
-    let output_file_name = "extras264.dat";
     let output_file_path = temp_dir_path.join(output_file_name);
     let output_file = output_file_path.to_string_lossy().to_string();
 
@@ -87,28 +85,49 @@ fn it_runs_with_2_arguments_264() -> Result<()> {
 
 #[test]
 fn it_runs_with_2_arguments_262() -> Result<()> {
-    let temp_dir_path = env::temp_dir();
-
-    // Create arguments
     let input_file = String::from("tests/assets/MAME 0.262 EXTRAs.zip");
     let expected_file = String::from("tests/assets/expected/MAME 0.262 EXTRAs.dat");
-    let output_file_name = "extras262.dat";
-    let output_file_path = temp_dir_path.join(output_file_name);
-    let output_file = output_file_path.to_string_lossy().to_string();
+    it_runs_with_2_arguments(input_file, expected_file, "extras262.dat")
+}
 
-    let mut cmd = Command::cargo_bin("convert-mame-extras-romvault")?;
-    let status = cmd
-        .arg(input_file)
-        .arg(output_file.clone())
-        .status()
-        .expect("Failure");
+#[test]
+fn it_runs_with_2_arguments_264() -> Result<()> {
+    let input_file = String::from("tests/assets/MAME 0.264 EXTRAs.zip");
+    let expected_file = String::from("tests/assets/expected/MAME 0.264 EXTRAs.dat");
+    it_runs_with_2_arguments(input_file, expected_file, "extras264.dat")
+}
 
-    assert!(status.success());
+#[test]
+fn it_runs_with_2_arguments_266() -> Result<()> {
+    let input_file = String::from("tests/assets/MAME 0.266 EXTRAs.zip");
+    let expected_file = String::from("tests/assets/expected/MAME 0.266 EXTRAs.dat");
+    it_runs_with_2_arguments(input_file, expected_file, "extras266.dat")
+}
 
-    // Compare files digests
-    assert!(compare_digests(&output_file, &expected_file).unwrap());
+#[test]
+fn it_runs_with_2_arguments_269() -> Result<()> {
+    let input_file = String::from("tests/assets/MAME 0.269 EXTRAs.zip");
+    let expected_file = String::from("tests/assets/expected/MAME 0.269 EXTRAs.dat");
+    it_runs_with_2_arguments(input_file, expected_file, "extras269.dat")
+}
 
-    assert!(fs::remove_file(output_file_path).is_ok());
+#[test]
+fn it_runs_with_2_arguments_270() -> Result<()> {
+    let input_file = String::from("tests/assets/MAME 0.270 EXTRAs.zip");
+    let expected_file = String::from("tests/assets/expected/MAME 0.270 EXTRAs.dat");
+    it_runs_with_2_arguments(input_file, expected_file, "extras270.dat")
+}
 
-    Ok(())
+#[test]
+fn it_runs_with_2_arguments_272() -> Result<()> {
+    let input_file = String::from("tests/assets/MAME 0.272 EXTRAs.zip");
+    let expected_file = String::from("tests/assets/expected/MAME 0.272 EXTRAs.dat");
+    it_runs_with_2_arguments(input_file, expected_file, "extras272.dat")
+}
+
+#[test]
+fn it_runs_with_2_arguments_276() -> Result<()> {
+    let input_file = String::from("tests/assets/MAME 0.276 EXTRAs.zip");
+    let expected_file = String::from("tests/assets/expected/MAME 0.276 EXTRAs.dat");
+    it_runs_with_2_arguments(input_file, expected_file, "extras276.dat")
 }
