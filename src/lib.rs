@@ -34,12 +34,12 @@ impl Config {
         let input_file_path = PathBuf::from(&args.input_file);
         let mut output_file_path: PathBuf;
 
-        if args.output_file.is_none() {
+        if let Some(path_buf) = &args.output_file {
+            output_file_path = PathBuf::from(path_buf);
+        } else {
             // Compute output file name from input file name
             output_file_path = PathBuf::from(input_file_name);
             output_file_path.set_extension("dat");
-        } else {
-            output_file_path = PathBuf::from(args.output_file.as_ref().unwrap());
         }
 
         Self {

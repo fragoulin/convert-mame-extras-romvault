@@ -175,11 +175,11 @@ fn add_games(
     let root_dir = config.root_dir;
     let dir = "dir";
 
-    if root_dir.is_some() {
+    if let Some(root) = root_dir {
         let mut dir = BytesStart::new(dir);
         let attr = Attribute {
             key: QName(b"name"),
-            value: Cow::from(root_dir.unwrap().as_bytes()),
+            value: Cow::from(root.as_bytes()),
         };
         dir.push_attribute(attr);
         writer.write_event(Event::Start(dir))?;
@@ -279,17 +279,15 @@ fn add_headers(writer: &mut Writer<Cursor<Vec<u8>>>, version: Option<f32>) -> Re
     writer.write_event(Event::Start(BytesStart::new(name)))?;
     add_header(writer, "name", "Extras")?;
 
-    let description = if version.is_some() {
-        format!("MAME {} Extras (all content)", version.unwrap())
-    } else {
-        String::from("MAME Extras (all content)")
-    };
+    let description = version.map_or_else(|| String::from("MAME Extras (all content)"), |version| format!("MAME {version} Extras (all content)"));
 
     add_header(writer, "description", description.as_str())?;
     add_header(writer, "category", "Standard DatFile")?;
-    if version.is_some() {
-        add_header(writer, "version", &version.unwrap().to_string())?;
+
+    if let Some(version) = version {
+        add_header(writer, "version", &version.to_string())?;
     }
+
     add_header(writer, "author", "Pleasuredome")?;
     add_header(
         writer,

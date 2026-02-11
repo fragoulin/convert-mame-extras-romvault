@@ -39,7 +39,7 @@ pub fn check_input_file(input_file_path: &Path) -> Result<()> {
             ErrorKind::PermissionDenied => {
                 return Err(anyhow!(
                     "you have no permission to access file `{}`",
-                    input_file_path.display().to_string()
+                    input_file_path.display()
                 ))
             }
             _ => return Err(err.into()),
@@ -52,7 +52,7 @@ pub fn check_input_file(input_file_path: &Path) -> Result<()> {
     let Ok(archive) = zip::ZipArchive::new(reader) else {
         return Err(anyhow!(
             "the file `{}` is not a valid Zip file",
-            input_file_path.display().to_string()
+            input_file_path.display()
         ));
     };
 
