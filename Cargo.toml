@@ -17,9 +17,9 @@ publish = false
 [dependencies]
 anyhow = "1.0.98"
 clap = { version = "4.5.39", features = ["derive"] }
-quick-xml = "0.37.5"
+quick-xml = "0.39"
 regex = "1.11.1"
-zip = "4.0.0"
+zip = "7.4.0"
 
 [dev-dependencies]
 assert_cmd = "2.0.17"
