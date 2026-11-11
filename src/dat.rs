@@ -178,8 +178,8 @@ fn add_games(
     if let Some(root) = root_dir {
         let mut dir = BytesStart::new(dir);
         let attr = Attribute {
-            key: QName(b"name"),
-            value: Cow::from(root.as_bytes()),
+            key: QName("name"),
+            value: Cow::from(root),
         };
         dir.push_attribute(attr);
         writer.write_event(Event::Start(dir))?;
@@ -188,11 +188,11 @@ fn add_games(
     loop {
         match (&state, reader.read_event_into(&mut buf)) {
             (State::Datafile, Ok(Event::Start(tag))) => {
-                if tag.name().as_ref() == b"machine" {
+                if tag.name().as_ref() == "machine" {
                     state = State::Machine;
                     let name_attribute = tag.try_get_attribute("name")?.unwrap();
                     if !dirs.is_empty() {
-                        let value = String::from_utf8(name_attribute.value.to_vec())?;
+                        let value = name_attribute.value.to_string();
 
                         if dirs.contains(&value.as_str()) {
                             let mut dir = BytesStart::new(dir);
@@ -208,7 +208,7 @@ fn add_games(
                 }
             }
             (State::Machine, Ok(Event::Start(e))) => {
-                if e.name().as_ref() == b"description" {
+                if e.name().as_ref() == "description" {
                     state = State::Description;
                     writer.write_event(Event::Start(e))?;
                 }
@@ -217,18 +217,18 @@ fn add_games(
                 writer.write_event(Event::Text(e))?;
             }
             (State::Machine, Ok(Event::Empty(e))) => {
-                if e.name().as_ref() == b"rom" {
+                if e.name().as_ref() == "rom" {
                     writer.write_event(Event::Empty(e))?;
                 }
             }
             (State::Description, Ok(Event::End(e))) => {
-                if e.name().as_ref() == b"description" {
+                if e.name().as_ref() == "description" {
                     state = State::Machine;
                     writer.write_event(Event::End(e))?;
                 }
             }
             (State::Machine, Ok(Event::End(e))) => {
-                if e.name().as_ref() == b"machine" {
+                if e.name().as_ref() == "machine" {
                     state = State::Datafile;
                     let game = BytesEnd::new("game");
                     writer.write_event(Event::End(game))?;

@@ -1,6 +1,7 @@
 //! Zip file handlers.
 
 use anyhow::anyhow;
+use zip::result::ZipError;
 use std::fs::{self};
 use std::io::{BufReader, ErrorKind};
 use std::path::Path;
@@ -57,8 +58,12 @@ pub fn check_input_file(input_file_path: &Path) -> Result<()> {
     };
 
     // Check if input ZIP file contains all expected files
-    let entries: Vec<&str> = archive.file_names().collect();
-    if !FILES.iter().all(|dat_file| entries.contains(dat_file)) {
+    let entries: Vec<String> = archive
+        .file_names()
+        .map(|res| res.map(std::borrow::Cow::into_owned))
+        .collect::<std::result::Result<_, ZipError>>()?;
+
+    if !FILES.iter().all(|dat_file| entries.contains(&dat_file.to_string())) {
         return Err(anyhow!(
             "input Zip file must contains 3 files: {}",
             FILES.join(", "),

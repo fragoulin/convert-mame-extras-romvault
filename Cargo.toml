@@ -1,6 +1,6 @@
 [package]
 name = "convert-mame-extras-romvault"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2021"
 authors = ["Fabrice Morin" ]
 description = "Convert MAME Extras datafiles to a datafile compatible with RomVault"
@@ -17,9 +17,9 @@ publish = false
 [dependencies]
 anyhow = "1.0.98"
 clap = { version = "4.5.39", features = ["derive"] }
-quick-xml = "0.39"
+quick-xml = "0.42"
 regex = "1.11.1"
-zip = "7.4.0"
+zip = "9.5"
 
 [dev-dependencies]
 assert_cmd = "2.0.17"
